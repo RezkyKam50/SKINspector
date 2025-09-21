@@ -7,7 +7,6 @@ import pandas as pd
 def _train_splits():
 
     path = f"{PARENT()}/dataset"
-     
     ann = pd.read_csv(f"{path}/anno.csv")
      
     def fetch(image_id):
@@ -60,52 +59,6 @@ def _train_splits():
 
     return train_dataset, eval_dataset
 
-
-
-
-
-
-# def _tokenization(messages, processor):
-#     processed_samples = []
-    
-#     for message in messages:
-#         text = processor.apply_chat_template(
-#             message["conversations"], 
-#             tokenize=False, 
-#             add_generation_prompt=False,  # FALSE for training
-#         )
-        
-#         # Process vision information - this should handle base64 images
-#         image_inputs, video_inputs = process_vision_info(
-#             message["conversations"], 
-#             return_video_kwargs=False
-#         )
-        
-#         # Tokenize THIS SINGLE SAMPLE
-#         sample_inputs = processor(
-#             text=text,
-#             images=image_inputs[0] if image_inputs else None,  # First image if exists
-#             padding=True,  # Will pad later during collation
-#             return_tensors="pt",
-#         )
-        
-#         # Convert to individual sample format
-#         sample_dict = {
-#             "input_ids": sample_inputs["input_ids"].squeeze(0),        # Remove batch dim
-#             "attention_mask": sample_inputs["attention_mask"].squeeze(0),
-#             "labels": sample_inputs["input_ids"].squeeze(0).clone(),   # Labels for LM
-#         }
-         
-#         if "pixel_values" in sample_inputs:
-#             sample_dict["pixel_values"] = sample_inputs["pixel_values"].squeeze(0)
-
-#         if "image_grid_thw" in sample_inputs:
-#             sample_dict["image_grid_thw"] = sample_inputs["image_grid_thw"]
-        
-#         processed_samples.append(sample_dict)
-#         print(processed_samples)
-
-#     return processed_samples
 
 
 
