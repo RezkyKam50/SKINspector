@@ -4,74 +4,83 @@ from path_resolver import PARENT
 import pandas as pd
 
 
-def _train_splits():
+def format_data(sample, image, caption):
+    conversation = [
+        {
+            "role": "system",
+            "content": system_message,
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "image": sample[image],   
+                },
+                {
+                    "type": "text",
+                    "text": query_message,
+                },
+            ],
+        },
+        {
+            "role": "assistant",
+            "content": sample[caption],
+        },
+    ]
+    
+    return {
+        "image": sample[image],  
+        "conversations": conversation,
+        "text": sample[caption] # <- this is for suffix or golden reference 
+    }
 
-    path = f"{PARENT()}/dataset"
-    ann = pd.read_csv(f"{path}/anno.csv")
-     
-    def fetch(image_id):
-        return f"{path}/images/img_{image_id}.jpg"
+def fetch(idx, parent, img_folder):
+    return f"{parent}/{img_folder}/img_{idx}.jpg"
 
-    ann = ann[ann['id'].between(1, 3700)].copy()
+
+def _train_splits(
+    path_to_dataset_parent=None, 
+    images_dataset_file=None,
+    annotation_dataset_file=None,
+    image=None, 
+    caption=None, 
+    caption_id=None, 
+    train_split=None, 
+    split_seed=None,
+    ):
+    ann = pd.read_csv(f"{path_to_dataset_parent}/{annotation_dataset_file}")
+
+    ann = ann[~ann["Exclude"].isin([1, True])].reset_index(drop=True)
+
+    print(image, caption, caption_id)
+
+    ann = ann[ann[caption_id].between(1, 3700)].copy().reset_index(drop=True)
     df = pd.DataFrame({
-        'image': [fetch(img_id) for img_id in ann['id']],
-        'caption_zh_polish_en': ann['caption_zh_polish_en']
+        image: [fetch(
+            idx, 
+            path_to_dataset_parent, 
+            images_dataset_file
+            ) for idx in ann[caption_id]],
+        caption: ann[caption]
     })
 
-    def format_data(sample, index):
-        _image = sample['image']   
-        conversation = [
-            {
-                "role": "system",
-                "content": system_message,
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "image": _image,   
-                    },
-                    {
-                        "type": "text",
-                        "text": query_message,
-                    },
-                ],
-            },
-            {
-                "role": "assistant",
-                "content": sample['caption_zh_polish_en'],
-            },
-        ]
-        
-        return {
-            "image": _image,  
-            "conversations": conversation,
-            "text": sample['caption_zh_polish_en'] # <- this is for suffix or golden reference 
-        }
-
     dataset = Dataset.from_pandas(df)
-    dataset = dataset.train_test_split(test_size=0.2, seed=42)
+    dataset = dataset.train_test_split(test_size=train_split, seed=split_seed)
     
-    train_dataset = [format_data(sample, i) for i, sample in enumerate(dataset["train"])]
-    eval_dataset = [format_data(sample, i) for i, sample in enumerate(dataset["test"])]
+    train_data = [sample for sample in dataset["train"]]
+    eval_data = [sample for sample in dataset["test"]]
+    
+    train_dataset = [format_data(
+        sample, 
+        image, 
+        caption
+        ) for sample in train_data]
 
+    eval_dataset = [format_data(
+        sample, 
+        image, 
+        caption
+        ) for sample in eval_data]
 
     return train_dataset, eval_dataset
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
