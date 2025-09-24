@@ -12,8 +12,7 @@ from custom import (
 from model_load import LLM_LOAD_HF
 from preprocess import _train_splits
 from path_resolver import PARENT
-from nuclear import nuke
-import warnings, torch, numpy as np, evaluate, pandas as pd
+import warnings, torch, numpy as np, evaluate, pandas as pd, gc
 from path_resolver import PARENT
 
 
@@ -27,9 +26,12 @@ _train_log_output="./logs/"
 _train_metrics_log="./metrics.csv"
 
 
+# this should be the folder containing both image and its annotation.
 _dataset_path=f"{PARENT(levels=1)}/dataset"
+# images should be under 'images' folder.
 _dataset_file_images=str('images')
-_dataset_images_annotations='annotation/anno.csv'
+# annotation should be under 'annotations' folder.
+_dataset_images_annotations=str('annotations/skincap_v240623.csv')
 
 
 _dataset_features_image_features=str('images')
@@ -217,8 +219,7 @@ def Qwen2_5_VL_Train(
 
     finally:
         if clear_cache_after:
-            nuke()
-
+            gc.collect()
 if __name__ == "__main__":
 
     Qwen2_5_VL_Train(True, True, True)
