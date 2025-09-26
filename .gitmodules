@@ -1,3 +1,9 @@
 [submodule "llama.cpp"]
 	path = llama.cpp
 	url = https://github.com/ggerganov/llama.cpp.git
+[submodule "datasets/SkinCAP"]
+	path = datasets/SkinCAP
+	url = https://huggingface.co/datasets/joshuachou/SkinCAP
+[submodule "llama-cpp-python"]
+	path = llama-cpp-python
+	url = https://github.com/abetlen/llama-cpp-python.git
