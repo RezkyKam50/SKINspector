@@ -10,51 +10,76 @@ from torch.utils.data import DataLoader
 import evaluate, torch, pandas as pd, os, gc
 
 
+def safe_divide(numerator, denominator, default=0.0):
+    try:
+        return numerator / denominator if denominator != 0 else default
+    except (TypeError, ZeroDivisionError):
+        return default
+
+def calculate_bertscore(results):
+    if "bertscore" in results and isinstance(results["bertscore"], dict):
+        bs_results = results["bertscore"]
+        if (len(bs_results.get("precision", [])) > 0 and 
+            len(bs_results.get("recall", [])) > 0 and 
+            len(bs_results.get("f1", [])) > 0):
+            
+            results["bertscore"] = {
+                "precision": safe_divide(sum(bs_results["precision"]), len(bs_results["precision"])),
+                "recall": safe_divide(sum(bs_results["recall"]), len(bs_results["recall"])),
+                "f1": safe_divide(sum(bs_results["f1"]), len(bs_results["f1"])),
+            }
+        else:
+            # If division by zero or empty lists, set to default values.
+            results["bertscore"] = {"precision": 0.0, "recall": 0.0, "f1": 0.0}
+    return results
+
 def log_metrics(pred, ref, metrics_dict, state, append=True, save_path=None):
     predictions, references = [], []
     predictions.extend(pred)
     references.extend(ref['suffixes'])
     results = {}
-    for name, metric in metrics_dict.items():
-        if name == "bertscore":
-            results[name] = metric.compute(
-                predictions=predictions,
-                references=references,
-                lang="en",
-                model_type="distilbert-base-uncased" 
+
+    try:
+        for name, metric in metrics_dict.items():
+            if name == "bertscore":
+                results[name] = metric.compute(
+                    predictions=predictions,
+                    references=references,
+                    lang="en",
+                    model_type="distilbert-base-uncased" 
+                )
+                results = calculate_bertscore(results)
+            else:
+                results[name] = metric.compute(
+                                                predictions=predictions,
+                                                references=references
+                                            )
+        print("Metrics:", results)
+        df = pd.DataFrame({
+            "epoch": [state.epoch] * len(predictions),
+            "step": [state.global_step] * len(predictions),
+            "reference": references,
+            "generated": predictions
+        })
+        for name, score_dict in results.items():
+            if isinstance(score_dict, dict):
+                for k, v in score_dict.items():
+                    df[f"{name}_{k}"] = [v] * len(predictions)
+            else:
+                df[name] = [score_dict] * len(predictions)
+        if append:
+            df.to_csv(
+                save_path, 
+                mode='a', 
+                index=False,
+                header=not os.path.exists(save_path)
             )
-            results[name] = {
-                "precision": sum(results[name]["precision"]) / len(results[name]["precision"]),
-                "recall": sum(results[name]["recall"]) / len(results[name]["recall"]),
-                "f1": sum(results[name]["f1"]) / len(results[name]["f1"]),
-            }
         else:
-            results[name] = metric.compute(
-                                            predictions=predictions,
-                                            references=references
-                                           )
-    print("Metrics:", results)
-    df = pd.DataFrame({
-        "epoch": [state.epoch] * len(predictions),
-        "step": [state.global_step] * len(predictions),
-        "reference": references,
-        "generated": predictions
-    })
-    for name, score_dict in results.items():
-        if isinstance(score_dict, dict):
-            for k, v in score_dict.items():
-                df[f"{name}_{k}"] = [v] * len(predictions)
-        else:
-            df[name] = [score_dict] * len(predictions)
-    if append:
-        df.to_csv(save_path, mode='a', index=False,
-                  header=not os.path.exists(save_path))
-    else:
-        df.to_csv(save_path, index=False)
+            df.to_csv(save_path, index=False)
 
-    torch.cuda.empty_cache()
-
-
+    finally:
+        del predictions, references, ref, pred, results, df
+        gc.collect()
 
 class GenerationCallback(TrainerCallback):
     def __init__(self, processor, _metrics_path):
@@ -68,7 +93,11 @@ class GenerationCallback(TrainerCallback):
         }
 
     @torch.no_grad()
-    @torch.amp.autocast(device_type='cuda',dtype=torch.bfloat16,enabled=True)
+    @torch.amp.autocast(
+        device_type='cuda',
+        dtype=torch.bfloat16,
+        enabled=True
+        )
     def on_evaluate(self, args, state, control, **kwargs):
         original_padding_side = self.processor.tokenizer.padding_side
         self.processor.tokenizer.padding_side = 'left'
@@ -125,12 +154,13 @@ class GenerationCallback(TrainerCallback):
                 )
                 torch.cuda.empty_cache()
 
+        # training should continue even if evaluation fails due to division by zero (edge case on early epochs).        
+        except Exception as e:
+            print(f"Error in log_metrics (non-fatal): {e}")
+
         finally:
             self.processor.tokenizer.padding_side = original_padding_side
             torch.cuda.empty_cache()
-
-
-
 
 class CustomTrainer(Trainer):
     def __init__(
