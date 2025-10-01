@@ -6,9 +6,12 @@ def SYS_PATH():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     return script_dir
 
-def PARENT():
+
+def PARENT(levels: int = 1) -> Path:
     current_dir = Path.cwd()
-    parent_dir = current_dir.parent
-    return parent_dir
+    try:
+        return current_dir.parents[levels - 1]
+    except IndexError:
+        raise ValueError(f"Cannot go up {levels} levels from {current_dir}")
 
 
