@@ -1,6 +1,5 @@
 from datasets import Dataset, load_dataset, DatasetDict
 from prompting import system_message, query_message
-from path_resolver import PARENT
 import pandas as pd, torch
 
 
