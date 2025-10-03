@@ -1,0 +1,1 @@
+./llama.cpp/build/bin/llama-mtmd-cli -m ./models/qwen-vl-Q4_K_M.gguf --mmproj ./models/mmproj-qwen --image ./utils/testing/basal.jpg -p "Describe this image, list also the possible scenarios of the medical condition and its medical term."
