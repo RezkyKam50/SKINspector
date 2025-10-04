@@ -1,5 +1,4 @@
-cd llama.cpp
-rm -rf ./build && mkdir ./build && cd build 
+rm -rf ./llama.cpp/build && mkdir ./llama.cpp/build && cd ./llama.cpp/build 
 
 ENHANCED_C_FLAGS="-O3 -march=native -mtune=native"
 ENHANCED_CXX_FLAGS="$ENHANCED_C_FLAGS"
@@ -55,6 +54,8 @@ cmake .. -G Ninja \
 -DGGML_CCACHE=ON \
 -DCMAKE_C_COMPILER_LAUNCHER=ccache \
 -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
--DCMAKE_CUDA_COMPILER_LAUNCHER=ccache
+-DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
+-DLLAMA_CURL=OFF
 
-ninja 
+ninja
+
