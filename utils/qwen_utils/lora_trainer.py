@@ -11,23 +11,23 @@ from custom import (
 )
 from model_load import LLM_LOAD_HF
 from preprocess import _train_splits
-from path_resolver import PARENT
 import warnings, torch, numpy as np, evaluate, pandas as pd, gc
-from path_resolver import PARENT
 
 
-_model_path=f"{PARENT(levels=1)}/models/Qwen2.5-VL-3B-Instruct"
+_revision="revision_1"
+
+_model_path=f"./models/Qwen2.5-VL-3B-Instruct"
 _model_patch_liger=True
 _model_dynamic_res=True
 
 
-_train_ft_output=f"{PARENT(levels=1)}/models/lora_qwen_vl/"
-_train_log_output="./logs/"
-_train_metrics_log="./metrics.csv"
+_train_ft_output=f"./models/lora_qwen_vl_{_revision}/"
+_train_log_output=f"./utils/logs_{_revision}/"
+_train_metrics_log=f"./docs/metrics_{_revision}.csv"
 
 
 # this should be the folder containing both image and its annotation.
-_dataset_path=f"{PARENT(levels=1)}/datasets"
+_dataset_path=f"./datasets"
 # images should be under 'images' folder.
 _dataset_file_images=str('images')
 # annotation should be under 'annotations' folder.
@@ -58,18 +58,18 @@ _train_lora_modules=[
     "q_proj", "k_proj", "o_proj", 
     "v_proj", "down_proj", "up_proj"
     ]
-_train_lora_alpha=8
-_train_lora_ranks=16
-_train_lora_dropout=0.3
+_train_lora_alpha=2
+_train_lora_ranks=4
+_train_lora_dropout=0.4
 _train_lora_dora=True
 _train_lora_bias="none"
 
 _train_epochs=3
-_train_batch_size=1
-_eval_batch_size=1
+_train_batch_size=4
+_eval_batch_size=4
 _train_grad_accum=2
-_train_learning_rate=1e-5
-_train_optimizer="adamw_8bit"  
+_train_learning_rate=1e-4
+_train_optimizer="lion_8bit"  
 _train_scheduler="cosine"      
 _train_max_grad_norm=5.5
 _train_weight_decay=0.07
@@ -80,7 +80,7 @@ _train_save_strategy="steps"
 _train_save_steps=100
 _train_save_total_limit=None
 _train_logging_steps=10
-_train_eval_steps=50
+_train_eval_steps=100
 _train_eval_strategy="steps"    
 _train_load_best_model=False
 _train_metric_for_best=None
@@ -97,6 +97,7 @@ _train_gradient_checkpointing=True
 _train_tf32=False      
 _train_ddp_find_unused_params=False
 _train_group_by_length=False
+_train_drop_unused_column=False
 
 def Prepare(use_cuda=None, require_grad=None):
     warnings.filterwarnings(
@@ -201,7 +202,7 @@ def Qwen2_5_VL_Train(
             ddp_find_unused_parameters=_train_ddp_find_unused_params,
             group_by_length=_train_group_by_length,
 
-            remove_unused_columns=False,
+            remove_unused_columns=_train_drop_unused_column
         )
         trainer = CustomTrainer(
             processor=processor,
