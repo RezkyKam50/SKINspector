@@ -33,6 +33,8 @@ RUN uv pip install -r requirements.txt
 # Build Python binding for C++ Engine
 RUN /app/scripts/cuda_python_binding.sh
 
+# TODO: pull models from HF
+
 COPY src/ /app/src/
 ENV PYTHONPATH=/app
 
