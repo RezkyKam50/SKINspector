@@ -1,0 +1,20 @@
+version: '1.0'
+
+services:
+  skinspector:
+    build: .
+    container_name: skinspector-app
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ./models:/app/models
+      - ./datasets:/app/datasets
+      - ./chroma_db:/app/chroma_db
+      - ./utils/logs_revision_1:/app/utils/logs_revision_1
+      - ./docs:/app/docs
+    stdin_open: true
+    tty: true
+    privileged: true
+    shm_size: 8g
