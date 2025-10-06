@@ -64,7 +64,7 @@ _train_lora_dropout=0.4
 _train_lora_dora=True
 _train_lora_bias="none"
 
-_train_epochs=3
+_train_epochs=15
 _train_batch_size=2
 _eval_batch_size=2
 _train_grad_accum=2

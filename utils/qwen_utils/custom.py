@@ -97,6 +97,7 @@ class GenerationCallback(TrainerCallback):
             "rouge": evaluate.load("rouge"),
             "bleu": evaluate.load("bleu"),
             "meteor": evaluate.load("meteor"),
+            "bertscore": "bertscore"  
         }
 
     @torch.no_grad()

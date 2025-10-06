@@ -10,13 +10,13 @@ model, processor = LLM_LOAD_HF(
     True
 )
 
-model = PeftModel.from_pretrained(model, f"./models/lora_qwen_vl_revision_1/checkpoint-200")
+model = PeftModel.from_pretrained(model, f"./models/lora_qwen_vl_revision_1/checkpoint-1800")
 
 messages = [
     {
         "role": "user",
         "content": [
-            {"type": "image", "image": "./examples/testing/basal_1.jpg"},
+            {"type": "image", "image": "./examples/testing/basal.jpg"},
             {"type": "text", "text": "Describe this image, list also the possible scenarios of the medical condition and its medical term."},
         ],
     }
