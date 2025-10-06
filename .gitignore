@@ -1,0 +1,12 @@
+__pycache__/
+logs/
+utils/logs/
+datasets/*.csv
+datasets/*.parquet
+datasets/images/
+datasets/test/
+datasets/annotation/
+models/
+key.txt
+utils/*.csv
+chroma_db/

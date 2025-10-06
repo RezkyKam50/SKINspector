@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=SKINspector
+Exec=bash -c "$HOME/.venv/bin/python3 $HOME/SKINspector/src/run.py"
+Categories=Development
+Terminal=False
+StartupNotify=True
