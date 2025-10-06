@@ -1,5 +1,5 @@
 __pycache__/
-logs/
+logs*/
 utils/logs/
 datasets/*.csv
 datasets/*.parquet
@@ -12,3 +12,4 @@ utils/*.csv
 chroma_db/
 cufile.log/
 cufile.log
+events.*
