@@ -11,6 +11,5 @@ models/
 key.txt
 utils/*.csv
 chroma_db/
-cufile.log/
-cufile.log
+cufile.*
 events.*
