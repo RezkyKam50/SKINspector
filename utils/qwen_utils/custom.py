@@ -19,20 +19,19 @@ def safe_divide(numerator, denominator, default=0.0):
 def calculate_bertscore(predictions, references):
     try:
         P, R, F1 = bert_score_compute(
-            predictions, 
-            references, 
-            device="cpu",
-            nthreads=8,
-            batch_size=128,
-            lang="en", 
-            model_type="neuml/pubmedbert-base-embeddings",
-            verbose=False,
-            use_fast_tokenizer=True
+            cands               =predictions, 
+            refs                =references, 
+            lang                ="en",               
+            device              ="cpu",
+            nthreads            =8,
+            batch_size          =2048,
+            verbose             =False,
+            use_fast_tokenizer  =True
         )
 
-        precision_avg   = safe_divide(P.sum().item(), len(P))
-        recall_avg      = safe_divide(R.sum().item(), len(R))
-        f1_avg          = safe_divide(F1.sum().item(), len(F1))
+        precision_avg           = safe_divide(P.sum().item(), len(P))
+        recall_avg              = safe_divide(R.sum().item(), len(R))
+        f1_avg                  = safe_divide(F1.sum().item(), len(F1))
         
         return {
             "precision": precision_avg,
@@ -43,21 +42,29 @@ def calculate_bertscore(predictions, references):
         print(f"Error calculating BERTScore: {e}")
         return {"precision": 0.0, "recall": 0.0, "f1": 0.0}
 
+
+def compute(results, predictions, references, metrics_dict):
+    for name, metric in metrics_dict.items():
+        if name == "bertscore":
+            results[name] = calculate_bertscore(predictions, references)
+        else:
+            results[name] = metric.compute(
+                predictions=predictions,
+                references=references
+            )
+    return results
+
+
 def log_metrics(pred, ref, metrics_dict, state, append=True, save_path=None):
+
     predictions, references = [], []
     predictions.extend(pred)
     references.extend(ref)
     results = {}
 
     try:
-        for name, metric in metrics_dict.items():
-            if name == "bertscore":
-                results[name] = calculate_bertscore(predictions, references)
-            else:
-                results[name] = metric.compute(
-                    predictions=predictions,
-                    references=references
-                )
+        results = compute(results, predictions, references, metrics_dict)
+
         print("Metrics:", results)
         df = pd.DataFrame({
             "epoch": [state.epoch] * len(predictions),
@@ -89,15 +96,67 @@ def log_metrics(pred, ref, metrics_dict, state, append=True, save_path=None):
         gc.collect()
 
 
+def input_tensors(batch, device):
+    inputs = {
+        'input_ids': batch['input_ids'].to(device),
+        'attention_mask': batch['attention_mask'].to(device)
+    }
+    if 'pixel_values' in batch and batch['pixel_values'] is not None:
+        inputs['pixel_values'] = batch['pixel_values'].to(device)
+
+    if 'image_grid_thw' in batch and batch['image_grid_thw'] is not None:
+        inputs['image_grid_thw'] = batch['image_grid_thw'].to(device)
+
+    return inputs
+
+
+def causal_generate(model, inputs, processor):
+    generated_ids = model.generate(
+        **inputs,
+        max_new_tokens          =256,
+        do_sample               =True,
+        pad_token_id            =processor.tokenizer.pad_token_id,
+        eos_token_id            =processor.tokenizer.eos_token_id,
+        output_scores           =False,
+        return_dict_in_generate =False,
+    )
+
+    input_lengths = inputs['attention_mask'].sum(dim=1)
+    generated_ids_trimmed = []
+    
+    for input_len, out_ids in zip(input_lengths, generated_ids):
+        if len(out_ids) > input_len:
+            generated_ids_trimmed.append(out_ids[input_len:])
+        else:
+            generated_ids_trimmed.append(torch.tensor([], device=out_ids.device, dtype=out_ids.dtype))
+
+    output_text = processor.batch_decode(
+        generated_ids_trimmed,
+        skip_special_tokens             =True,
+        clean_up_tokenization_spaces    =True   
+    )
+    del generated_ids, generated_ids_trimmed
+    return output_text
+
+
+def clean_text(output_text):
+    cleaned_outputs = []
+    for text in output_text:
+        cleaned = text.strip()
+        cleaned = cleaned.replace('<|endoftext|>', '').replace('<|im_end|>', '').replace('Describe the following image.', '').strip()
+        cleaned_outputs.append(cleaned)
+    return cleaned_outputs
+
+
 class GenerationCallback(TrainerCallback):
     def __init__(self, processor, _metrics_path):
         self.processor = processor
         self._metrics_path = _metrics_path
         self.metrics = {
-            "rouge": evaluate.load("rouge"),
-            "bleu": evaluate.load("bleu"),
-            "meteor": evaluate.load("meteor"),
-            "bertscore": "bertscore"  
+            "rouge"     : evaluate.load("rouge"),
+            "bleu"      : evaluate.load("bleu"),
+            "meteor"    : evaluate.load("meteor"),
+            "bertscore" : "bertscore"  
         }
 
     @torch.no_grad()
@@ -124,62 +183,23 @@ class GenerationCallback(TrainerCallback):
                     break
                 print(f"Evaluating batch {i}...")
                 
-                # language modeling
-                inputs = {
-                    'input_ids': batch['input_ids'].to(device),
-                    'attention_mask': batch['attention_mask'].to(device)
-                }
+                inputs          = input_tensors(batch, device)
+                output_text     = causal_generate(model, inputs, self.processor)
+                cleaned_outputs = clean_text(output_text)
 
-                # visual tensors
-                if 'pixel_values' in batch and batch['pixel_values'] is not None:
-                    inputs['pixel_values'] = batch['pixel_values'].to(device)
-
-                if 'image_grid_thw' in batch and batch['image_grid_thw'] is not None:
-                    inputs['image_grid_thw'] = batch['image_grid_thw'].to(device)
-
-                generated_ids = model.generate(
-                    **inputs,
-                    max_new_tokens=128,
-                    do_sample=True,
-                    pad_token_id=self.processor.tokenizer.pad_token_id,
-                    eos_token_id=self.processor.tokenizer.eos_token_id,
-                    output_scores=False,
-                    return_dict_in_generate=False,
-                )
-
-                input_lengths = inputs['attention_mask'].sum(dim=1)
-                generated_ids_trimmed = []
-                
-                for input_len, out_ids in zip(input_lengths, generated_ids):
-                    if len(out_ids) > input_len:
-                        generated_ids_trimmed.append(out_ids[input_len:])
-                    else:
-                        generated_ids_trimmed.append(torch.tensor([], device=out_ids.device, dtype=out_ids.dtype))
-
-                output_text = self.processor.batch_decode(
-                    generated_ids_trimmed,
-                    skip_special_tokens=True,
-                    clean_up_tokenization_spaces=True   
-                )
-                cleaned_outputs = []
-                for text in output_text:
-                    cleaned = text.strip()
-                    cleaned = cleaned.replace('<|endoftext|>', '').replace('<|im_end|>', '').replace('Describe the following image.', '').strip()
-                    cleaned_outputs.append(cleaned)
-                
                 all_predictions.extend(cleaned_outputs)
                 all_references.extend(batch['suffixes'])
                 
-                del generated_ids, generated_ids_trimmed, inputs
+                del inputs
                 torch.cuda.empty_cache()
 
             if all_predictions and all_references:
                 log_metrics(
-                    pred=all_predictions,
-                    ref=all_references,
-                    metrics_dict=self.metrics,
-                    state=state,
-                    save_path=self._metrics_path
+                    pred            =all_predictions,
+                    ref             =all_references,
+                    metrics_dict    =self.metrics,
+                    state           =state,
+                    save_path       =self._metrics_path
                 )
             else:
                 print("No predictions generated for evaluation")
@@ -209,37 +229,37 @@ class CustomTrainer(Trainer):
         **kwargs
         ):
         super().__init__(*args, **kwargs)
-        self.processor = processor
+        self.processor          =processor
 
-        self.num_workers_tr=num_workers_tr
-        self.num_workers_ev=num_workers_ev
+        self.num_workers_tr     =num_workers_tr
+        self.num_workers_ev     =num_workers_ev
 
-        self.is_pin_memory_tr=pin_memory_tr
-        self.is_pin_memory_ev=pin_memory_ev
+        self.is_pin_memory_tr   =pin_memory_tr
+        self.is_pin_memory_ev   =pin_memory_ev
 
-        self.is_persistent_tr=persistent_tr
-        self.is_persistent_ev=persistent_ev
+        self.is_persistent_tr   =persistent_tr
+        self.is_persistent_ev   =persistent_ev
 
     def get_train_dataloader(self):
 
         return DataLoader(
             self.train_dataset,
-            batch_size=self.args.per_device_train_batch_size,
-            shuffle=True,
-            collate_fn=lambda b: _tokenization_tr(b, self.processor),
-            num_workers=self.num_workers_tr,
-            pin_memory=self.is_pin_memory_tr,
-            persistent_workers=self.is_persistent_tr
+            batch_size          =self.args.per_device_train_batch_size,
+            shuffle             =True,
+            collate_fn          =lambda b: _tokenization_tr(b, self.processor),
+            num_workers         =self.num_workers_tr,
+            pin_memory          =self.is_pin_memory_tr,
+            persistent_workers  =self.is_persistent_tr
         )
     
     def get_eval_dataloader(self, eval_dataset=None):
 
         return DataLoader(
             eval_dataset or self.eval_dataset,
-            batch_size=self.args.per_device_eval_batch_size,
-            shuffle=True,
-            collate_fn=lambda b: _tokenization_ev(b, self.processor),
-            num_workers=self.num_workers_ev,
-            pin_memory=self.is_pin_memory_tr,
-            persistent_workers=self.is_persistent_ev
+            batch_size          =self.args.per_device_eval_batch_size,
+            shuffle             =True,
+            collate_fn          =lambda b: _tokenization_ev(b, self.processor),
+            num_workers         =self.num_workers_ev,
+            pin_memory          =self.is_pin_memory_tr,
+            persistent_workers  =self.is_persistent_ev
         )

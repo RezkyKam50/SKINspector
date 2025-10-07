@@ -10,14 +10,14 @@ model, processor = LLM_LOAD_HF(
     True
 )
 
-model = PeftModel.from_pretrained(model, f"./models/lora_qwen_vl_revision_1/checkpoint-1800")
+model = PeftModel.from_pretrained(model, f"./models/lora_qwen_vl_revision_1/checkpoint-300")
 
 messages = [
     {
         "role": "user",
         "content": [
-            {"type": "image", "image": "./examples/testing/basal.jpg"},
-            {"type": "text", "text": "Describe this image, list also the possible scenarios of the medical condition and its medical term."},
+            {"type": "image", "image": "./examples/testing/basal_1.jpg"},
+            {"type": "text", "text": "Describe and examine to the smallest detail of the skin condition on this image, list also the possible scenarios of the medical condition and its medical term."},
         ],
     }
 ]
@@ -35,7 +35,7 @@ inputs = processor(
 )
 inputs = inputs.to("cuda")
 
-generated_ids = model.generate(**inputs, max_new_tokens=128)
+generated_ids = model.generate(**inputs, max_new_tokens=256)
 generated_ids_trimmed = [
     out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
 ]

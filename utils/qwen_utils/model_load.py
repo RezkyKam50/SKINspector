@@ -38,11 +38,13 @@ def LLM_LOAD_HF(
             model_path, 
             min_pixels=min_pixels,
             max_pixels=max_pixels,
+            use_fast=False,
             trust_remote_code=True
             )
     else:
         processor = Qwen2_5_VLProcessor.from_pretrained(
             model_path, 
+            use_fast=False,
             trust_remote_code=True
             )
 

@@ -14,7 +14,7 @@ from preprocess import _train_splits
 import warnings, torch, numpy as np, evaluate, pandas as pd, gc
 
 
-_revision="revision_1"
+_revision="revision_3"
 
 _model_path=f"./models/Qwen2.5-VL-3B-Instruct"
 _model_patch_liger=True
@@ -58,9 +58,9 @@ _train_lora_modules=[
     "q_proj", "k_proj", "o_proj", 
     "v_proj", "down_proj", "up_proj"
     ]
-_train_lora_alpha=32
-_train_lora_ranks=64
-_train_lora_dropout=0.4
+_train_lora_alpha=12
+_train_lora_ranks=24
+_train_lora_dropout=0.1
 _train_lora_dora=True
 _train_lora_bias="none"
 
@@ -68,12 +68,12 @@ _train_epochs=15
 _train_batch_size=2
 _eval_batch_size=2
 _train_grad_accum=2
-_train_learning_rate=1e-4
-_train_optimizer="lion_8bit"  
+_train_learning_rate=8e-5
+_train_optimizer="adamw_8bit"  
 _train_scheduler="cosine"      
-_train_max_grad_norm=5.5
-_train_weight_decay=0.09
-_train_warmup_ratio=0.03
+_train_max_grad_norm=6.5
+_train_weight_decay=0.01
+_train_warmup_ratio=0.5
 _train_seed=42
 
 _train_save_strategy="steps"  
