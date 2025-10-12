@@ -55,9 +55,9 @@ _train_lora_modules=[
     "q_proj", "k_proj", "o_proj", 
     "v_proj", "down_proj", "up_proj"
     ]
-_train_lora_alpha=12
+_train_lora_alpha=8
 _train_lora_ranks=24
-_train_lora_dropout=0.1
+_train_lora_dropout=0.2
 _train_lora_dora=True
 _train_lora_bias="none"
 
@@ -66,8 +66,8 @@ _train_batch_size=2
 _eval_batch_size=2
 _train_grad_accum=2
 _train_learning_rate=2e-4
-_train_optimizer="adamw_8bit"  
-_train_scheduler="cosine"      
+_train_optimizer="lion_8bit"  
+_train_scheduler="linear"      
 _train_max_grad_norm=6.5
 _train_weight_decay=0.03
 _train_warmup_ratio=0.2
