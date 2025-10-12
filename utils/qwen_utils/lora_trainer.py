@@ -14,17 +14,15 @@ from preprocess import _train_splits
 import warnings, torch, numpy as np, evaluate, pandas as pd, gc
 
 
-_revision="revision_3"
+_revision="revision_4"
 
 _model_path=f"./models/Qwen2.5-VL-3B-Instruct"
 _model_patch_liger=True
 _model_dynamic_res=True
 
-
 _train_ft_output=f"./models/lora_qwen_vl_{_revision}/"
 _train_log_output=f"./utils/logs_{_revision}/"
 _train_metrics_log=f"./docs/metrics_{_revision}.csv"
-
 
 # this should be the folder containing both image and its annotation.
 _dataset_path=f"./datasets"
@@ -36,7 +34,6 @@ _dataset_images_annotations=str('SkinCAP/skincap_v240623.csv')
 _dataset_features_exclusion=str("Do not consider this image")
 # id of the features exclusion, do not set to boolean values as cuDF doesn't support mixed type.
 _dataset_exclusion_id = [1, 1]
-
 
 _dataset_features_image_features=str('images')
 _dataset_features_generation_caption=str('caption_zh_polish_en')
@@ -68,12 +65,12 @@ _train_epochs=15
 _train_batch_size=2
 _eval_batch_size=2
 _train_grad_accum=2
-_train_learning_rate=8e-5
+_train_learning_rate=2e-4
 _train_optimizer="adamw_8bit"  
 _train_scheduler="cosine"      
 _train_max_grad_norm=6.5
-_train_weight_decay=0.01
-_train_warmup_ratio=0.5
+_train_weight_decay=0.03
+_train_warmup_ratio=0.2
 _train_seed=42
 
 _train_save_strategy="steps"  
@@ -152,6 +149,7 @@ def Qwen2_5_VL_Train(
         print("Train dataset size:", len(train_dataset))
         print("Eval dataset size:", len(eval_dataset))
         peft_config = LoraConfig(
+                                    inference_mode=False,
                                     lora_alpha=_train_lora_alpha,
                                     r=_train_lora_ranks,
                                     lora_dropout=_train_lora_dropout,

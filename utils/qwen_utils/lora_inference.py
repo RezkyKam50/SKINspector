@@ -1,6 +1,10 @@
 from model_load import LLM_LOAD_HF
 from qwen_vl_utils import process_vision_info
 from peft import PeftModel
+import torch
+
+
+torch.backends.cuda.matmul.allow_tf32 = True
 
 model, processor = LLM_LOAD_HF(
     f"./models/Qwen2.5-VL-3B-Instruct",

@@ -7,7 +7,7 @@ from transformers import (
     TrainerCallback
 )
 from torch.utils.data import DataLoader
-import evaluate, torch, pandas as pd, os, gc
+import evaluate, torch, pandas as pd, os, gc, pprint
 from bert_score import score as bert_score_compute
 
 def safe_divide(numerator, denominator, default=0.0):
@@ -166,9 +166,9 @@ class GenerationCallback(TrainerCallback):
         enabled=True
     )
     def on_evaluate(self, args, state, control, **kwargs):
+        pprint.pprint(kwargs)
         original_padding_side = self.processor.tokenizer.padding_side
         self.processor.tokenizer.padding_side = 'left'
-        
         try:
             model = kwargs['model']
             device = model.device

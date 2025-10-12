@@ -1,2 +1,3 @@
-TOKENIZERS_PARALLELISM=false
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export TOKENIZERS_PARALLELISM=false
 python utils/qwen_utils/lora_trainer.py
