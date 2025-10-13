@@ -67,13 +67,29 @@ def _tokenization_ev(batch, processor):
             return_tensors="pt",
             padding=True
         )
+
+        labels = model_inputs["input_ids"].clone()
+        labels[labels == processor.tokenizer.pad_token_id] = -100
+
+        # Mask out image tokens
+        if isinstance(processor, Qwen2_5_VLProcessor):
+            image_tokens = [151652, 151653, 151655]
+        else:
+            image_tokens = [
+                processor.tokenizer.convert_tokens_to_ids(processor.image_token)
+            ]
+
+        for image_token_id in image_tokens:
+            labels[labels == image_token_id] = -100
+
         
         tensors = {
             "input_ids": model_inputs["input_ids"],
             "attention_mask": model_inputs["attention_mask"],
             "pixel_values": model_inputs["pixel_values"],
             "image_grid_thw": model_inputs["image_grid_thw"],
-            "suffixes": suffixes
+            "suffixes": suffixes,
+            "labels": labels
         }
 
         return tensors

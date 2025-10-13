@@ -1,5 +1,6 @@
 from transformers import (
-    TrainingArguments
+    TrainingArguments,
+    DataCollatorForSeq2Seq
 )
 from peft import (
     LoraConfig, 
@@ -11,10 +12,9 @@ from custom import (
 )
 from model_load import LLM_LOAD_HF
 from preprocess import _train_splits
-import warnings, torch, numpy as np, evaluate, pandas as pd, gc
+import warnings, torch, numpy as np, evaluate, pandas as pd, gc, datetime
 
-
-_revision="revision_4"
+_revision="revision_5"
 
 _model_path=f"./models/Qwen2.5-VL-3B-Instruct"
 _model_patch_liger=True
@@ -210,6 +210,8 @@ def Qwen2_5_VL_Train(
             pin_memory_ev=_dataset_ev_pin_memory,
             persistent_tr=_dataset_tr_persistent,
             persistent_ev=_dataset_ev_persistent,
+            # Qwen Training Docs uses Seq2SeQ Collator (in a case where our custom dataloader returns raw tensor)
+            data_collator=DataCollatorForSeq2Seq(tokenizer=processor.tokenizer, padding=True),
             model=peft_model,
             args=training_args,
             train_dataset=train_dataset,

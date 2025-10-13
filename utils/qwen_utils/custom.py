@@ -1,4 +1,4 @@
-from collate import (
+from dataloader import (
     _tokenization_tr, 
     _tokenization_ev
 )
@@ -189,6 +189,8 @@ class GenerationCallback(TrainerCallback):
 
                 all_predictions.extend(cleaned_outputs)
                 all_references.extend(batch['suffixes'])
+
+                total_count += batch["input_ids"].size(0)
                 
                 del inputs
                 torch.cuda.empty_cache()
@@ -210,7 +212,7 @@ class GenerationCallback(TrainerCallback):
             traceback.print_exc()
 
         finally:
-            del cleaned_outputs, all_predictions, all_references
+            del cleaned_outputs, all_predictions, all_references, total_count
             self.processor.tokenizer.padding_side = original_padding_side
             torch.cuda.empty_cache()
 
