@@ -210,8 +210,11 @@ def Qwen2_5_VL_Train(
             pin_memory_ev=_dataset_ev_pin_memory,
             persistent_tr=_dataset_tr_persistent,
             persistent_ev=_dataset_ev_persistent,
-            # Qwen Training Docs uses Seq2SeQ Collator (in a case where our custom dataloader returns raw tensor)
-            data_collator=DataCollatorForSeq2Seq(tokenizer=processor.tokenizer, padding=True),
+            # (in a case where our custom dataloader returns raw tensor, we'll use Seq2Seq collator)
+            data_collator=DataCollatorForSeq2Seq(
+                tokenizer=processor.tokenizer, 
+                padding=True
+                ),
             model=peft_model,
             args=training_args,
             train_dataset=train_dataset,

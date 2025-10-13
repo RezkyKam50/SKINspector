@@ -189,10 +189,7 @@ class GenerationCallback(TrainerCallback):
 
                 all_predictions.extend(cleaned_outputs)
                 all_references.extend(batch['suffixes'])
-
-                total_count += batch["input_ids"].size(0)
                 
-                del inputs
                 torch.cuda.empty_cache()
 
             if all_predictions and all_references:
@@ -212,7 +209,7 @@ class GenerationCallback(TrainerCallback):
             traceback.print_exc()
 
         finally:
-            del cleaned_outputs, all_predictions, all_references, total_count
+            del cleaned_outputs, all_predictions, all_references
             self.processor.tokenizer.padding_side = original_padding_side
             torch.cuda.empty_cache()
 
