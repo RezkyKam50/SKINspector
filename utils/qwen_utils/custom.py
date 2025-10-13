@@ -7,13 +7,14 @@ from transformers import (
     TrainerCallback
 )
 from torch.utils.data import DataLoader
-import evaluate, torch, pandas as pd, os, gc, pprint
+import evaluate, torch, cudf, os, gc, pprint, traceback
 from bert_score import score as bert_score_compute
 
 def safe_divide(numerator, denominator, default=0.0):
     try:
         return numerator / denominator if denominator != 0 else default
     except (TypeError, ZeroDivisionError):
+        traceback.print_exc()
         return default
 
 def calculate_bertscore(predictions, references):
@@ -40,19 +41,27 @@ def calculate_bertscore(predictions, references):
         }
     except Exception as e:
         print(f"Error calculating BERTScore: {e}")
+        traceback.print_exc()
         return {"precision": 0.0, "recall": 0.0, "f1": 0.0}
 
 
 def compute(results, predictions, references, metrics_dict):
-    for name, metric in metrics_dict.items():
-        if name == "bertscore":
-            results[name] = calculate_bertscore(predictions, references)
-        else:
-            results[name] = metric.compute(
-                predictions=predictions,
-                references=references
-            )
-    return results
+    try:
+        for name, metric in metrics_dict.items():
+            print(f"Computing: {name}")
+            if name == "bertscore":
+                results[name] = calculate_bertscore(predictions, references)
+            else:
+                results[name] = metric.compute(
+                    predictions=predictions,
+                    references=references
+                )
+    except Exception as e:
+        print(f"Error during computing metrics: {e}")
+        traceback.print_exc()
+    finally:
+        gc.collect()
+    return results if results is not None else {}
 
 
 def log_metrics(pred, ref, metrics_dict, state, append=True, save_path=None):
@@ -66,7 +75,7 @@ def log_metrics(pred, ref, metrics_dict, state, append=True, save_path=None):
         results = compute(results, predictions, references, metrics_dict)
 
         print("Metrics:", results)
-        df = pd.DataFrame({
+        df = cudf.DataFrame({
             "epoch": [state.epoch] * len(predictions),
             "step": [state.global_step] * len(predictions),
             "reference": references,
@@ -90,9 +99,12 @@ def log_metrics(pred, ref, metrics_dict, state, append=True, save_path=None):
 
     except Exception as e:
         print(f"Error during evaluation: {e}")
-
+        traceback.print_exc()
+        
     finally:
-        del predictions, references, ref, pred, results, df
+        del predictions, references, ref, pred, results
+        if df is not None:
+            del df
         gc.collect()
 
 
@@ -189,7 +201,7 @@ class GenerationCallback(TrainerCallback):
 
                 all_predictions.extend(cleaned_outputs)
                 all_references.extend(batch['suffixes'])
-                
+
                 torch.cuda.empty_cache()
 
             if all_predictions and all_references:

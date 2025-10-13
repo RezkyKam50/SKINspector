@@ -12,7 +12,7 @@ from custom import (
 )
 from model_load import LLM_LOAD_HF
 from preprocess import _train_splits
-import warnings, torch, numpy as np, evaluate, pandas as pd, gc, datetime
+import warnings, torch, gc 
 
 _revision="revision_5"
 
@@ -55,9 +55,9 @@ _train_lora_modules=[
     "q_proj", "k_proj", "o_proj", 
     "v_proj", "down_proj", "up_proj"
     ]
-_train_lora_alpha=8
-_train_lora_ranks=24
-_train_lora_dropout=0.2
+_train_lora_alpha=32
+_train_lora_ranks=64
+_train_lora_dropout=0.006
 _train_lora_dora=True
 _train_lora_bias="none"
 
@@ -68,8 +68,8 @@ _train_grad_accum=2
 _train_learning_rate=2e-4
 _train_optimizer="lion_8bit"  
 _train_scheduler="linear"      
-_train_max_grad_norm=6.5
-_train_weight_decay=0.03
+_train_max_grad_norm=15.5
+_train_weight_decay=0.005
 _train_warmup_ratio=0.2
 _train_seed=42
 
