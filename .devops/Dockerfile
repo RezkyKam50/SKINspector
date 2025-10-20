@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir uv
 WORKDIR /app
 COPY requirements.txt .
 COPY scripts/ /app/scripts/
+COPY models/ /app/models/
 RUN chmod +x /app/scripts/*.sh 
 
 # Install FlashAttention & TorchVision before other deps
@@ -33,7 +34,8 @@ RUN uv pip install -r requirements.txt
 # Build Python binding for C++ Engine
 RUN /app/scripts/cuda_python_binding.sh
 
-# TODO: pull models from HF
+# Pull Vanilla model from HF
+RUN /app/models/install_vlm.sh
 
 COPY src/ /app/src/
 ENV PYTHONPATH=/app
