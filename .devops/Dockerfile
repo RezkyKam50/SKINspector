@@ -1,3 +1,6 @@
+# this dockerfile is only for deployment and not for training.
+# for training, we can directly leverage existing scripts on parents folder.
+
 FROM nvidia/cuda:13.0.1-devel-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -23,7 +26,10 @@ WORKDIR /app
 COPY requirements.txt .
 COPY scripts/ /app/scripts/
 COPY models/ /app/models/
+COPY src/ /app/src/
+
 RUN chmod +x /app/scripts/*.sh 
+RUN chmod +x /app/models/*.sh 
 
 # Install FlashAttention & TorchVision before other deps
 RUN /app/scripts/dependencies.sh
@@ -37,7 +43,6 @@ RUN /app/scripts/cuda_python_binding.sh
 # Pull Vanilla model from HF
 RUN /app/models/install_vlm.sh
 
-COPY src/ /app/src/
 ENV PYTHONPATH=/app
 
 EXPOSE 7860
