@@ -19,33 +19,41 @@ from dataloader import (
 )
 
 
-import os
+import os, pandas as pd
 from datetime import datetime
 from collections import Counter
+ 
 
-def compute_class_weights(train_dataset):
-    labels = [train_dataset.dataframe.iloc[i]['disease'] for i in range(len(train_dataset))]
-    label_counts = Counter(labels)
+def compute_class_weights(dataset):
+    if hasattr(dataset, "df"):
+ 
+        if not isinstance(dataset.df, (pd.DataFrame,)):
+            df = dataset.df.to_pandas()
+        else:
+            df = dataset.df
+        labels = df["disease"].tolist()
+    elif hasattr(dataset, "labels"):
+        labels = dataset.labels
+    else:
+        raise AttributeError("Could not find 'disease' labels in dataset.")
     
-    total_samples = len(labels)
-    num_classes = len(label_counts)
-    
-    weights = []
-    for label in train_dataset.labels:
-        count = label_counts[label]
-        weight = total_samples / (num_classes * count)
-        weights.append(weight)
-    
-    weights = torch.FloatTensor(weights)
+    counts = Counter(labels)
+    total = sum(counts.values())
+    weights = {cls: total / (len(counts) * count) for cls, count in counts.items()}
 
-    return weights
+    class_weights = torch.tensor(
+        [weights[cls] for cls in dataset.label_to_idx.keys()],
+        dtype=torch.float32
+    )
+    return class_weights
+
 
 # for BF16, we dont need gradscaler since it has better dynamic range than FP16
 def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=25, device='cuda', log_dir=None):
     model = model.to(device)
 
     if log_dir is None:
-        log_dir = os.path.join('runs', datetime.now().strftime('%Y%m%d_%H%M%S'))
+        log_dir = os.path.join('./utils/classification_utils/logs/', datetime.now().strftime('%Y%m%d_%H%M%S'))
     writer = SummaryWriter(log_dir)
     
     train_losses = []
@@ -153,36 +161,35 @@ def prepare_dataset(dataset=None):
     val_dataset = SkinDataset(val_df, transform=val_transform, is_train=False, 
                             label_mapping=train_dataset.label_to_idx)
     
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4)
     
     num_classes = len(train_dataset.labels)
 
     return train_loader, val_loader, train_dataset, val_dataset, num_classes
 
 
-def main():
+def train(epochs=100):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     train_loader, val_loader, train_dataset, val_dataset, num_classes = prepare_dataset()
     
     model = setup_model(num_classes)
-    
-    class_weights = compute_class_weights(train_dataset)
-    class_weights = class_weights.to(device)
+
+    class_weights = compute_class_weights(train_dataset).to(device)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     
     optimizer = optim.AdamW(model.parameters(), lr=1e-4, weight_decay=5e-3)   
     scheduler = optim.lr_scheduler.OneCycleLR(
         optimizer, 
         max_lr=1e-3,   
-        epochs=25,
+        epochs=epochs,
         steps_per_epoch=len(train_loader)
     )
     
     model, train_losses, val_losses, val_accuracies = train_model(
         model, train_loader, val_loader, criterion, optimizer, scheduler,  
-        num_epochs=100, device=device
+        num_epochs=epochs, device=device
     )
     
     torch.save({
@@ -209,4 +216,4 @@ def main():
     accuracy = accuracy_score(all_labels, all_preds)
  
 if __name__ == "__main__":
-    main()
+    train()

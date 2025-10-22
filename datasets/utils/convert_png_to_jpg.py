@@ -1,10 +1,8 @@
 from PIL import Image
 import os
 
-from path_resolver import PARENT
-
-path_to_images = f"{PARENT(levels=1)}/SkinCAP/skincap/"
-save_path = f"{PARENT(levels=1)}/images/"
+path_to_images = f"./datasets/SkinCAP/skincap/"
+save_path = f"./datasets/images/"
 os.makedirs(save_path, exist_ok=True)
  
 for filename in os.listdir(path_to_images):

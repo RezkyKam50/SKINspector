@@ -1,9 +1,8 @@
 import pandas as pd, numpy as np
-from path_resolver import PARENT
 import matplotlib.pyplot as plt, matplotlib, torch
 matplotlib.use("Qt5Agg")
 
-path_to_dataset = f"{PARENT(levels=1)}/SkinCAP/skincap_v240623.csv"
+path_to_dataset = f"./datasets/SkinCAP/skincap_v240623.csv"
 
 df = pd.read_csv(path_to_dataset)
 
