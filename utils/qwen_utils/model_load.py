@@ -1,4 +1,3 @@
-from ultralytics import YOLO
 import os, torch
 from transformers import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLProcessor
 from quant_hf import _quantizecfg
