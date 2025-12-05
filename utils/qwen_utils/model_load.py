@@ -3,6 +3,7 @@ from transformers import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLProcessor
 from quant_hf import _quantizecfg
 from liger_kernel.transformers import apply_liger_kernel_to_qwen2_5_vl
 
+
 def LLM_LOAD_HF(
     path_to_model, 
     apply_liger_kernel=None,

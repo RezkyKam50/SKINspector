@@ -1,2 +1,2 @@
-git lfs install
-git clone https://huggingface.co/datasets/joshuachou/SkinCAP
+git-lfs install
+git clone git@hf.co:datasets/joshuachou/SkinCAP.git

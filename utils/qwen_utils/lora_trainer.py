@@ -39,8 +39,8 @@ _dataset_features_image_features=str('images')
 _dataset_features_generation_caption=str('caption_zh_polish_en')
 _dataset_features_match_to_id=str('id')
 
-_dataset_ev_tr_images_max_pixel= (1024 * (28 * 28))
-_dataset_ev_tr_images_min_pixel= (512 * (28 * 28))
+_dataset_ev_tr_images_max_pixel= (512 * (28 * 28))
+_dataset_ev_tr_images_min_pixel= (256 * (28 * 28))
 _dataset_ev_tr_split=0.2
 _dataset_ev_tr_seed=42
 
@@ -55,19 +55,19 @@ _train_lora_modules=[
     "q_proj", "k_proj", "o_proj", 
     "v_proj", "down_proj", "up_proj"
     ]
-_train_lora_alpha=32
-_train_lora_ranks=64
+_train_lora_alpha=8
+_train_lora_ranks=16
 _train_lora_dropout=0.006
 _train_lora_dora=True
 _train_lora_bias="none"
 
 _train_epochs=15
-_train_batch_size=2
-_eval_batch_size=2
+_train_batch_size=1
+_eval_batch_size=1
 _train_grad_accum=2
 _train_learning_rate=2e-4
 _train_optimizer="lion_8bit"  
-_train_scheduler="linear"      
+_train_scheduler="cosine"      
 _train_max_grad_norm=15.5
 _train_weight_decay=0.005
 _train_warmup_ratio=0.2
