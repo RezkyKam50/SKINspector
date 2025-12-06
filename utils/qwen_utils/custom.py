@@ -7,7 +7,7 @@ from transformers import (
     TrainerCallback
 )
 from torch.utils.data import DataLoader
-import evaluate, torch, cudf, os, gc, pprint, traceback
+import evaluate, torch, os, gc, pprint, traceback, pandas as pd
 from bert_score import score as bert_score_compute
 
 def safe_divide(numerator, denominator, default=0.0):
@@ -75,7 +75,7 @@ def log_metrics(pred, ref, metrics_dict, state, append=True, save_path=None):
         results = compute(results, predictions, references, metrics_dict)
 
         print("Metrics:", results)
-        df = cudf.DataFrame({
+        df = pd.DataFrame({
             "epoch": [state.epoch] * len(predictions),
             "step": [state.global_step] * len(predictions),
             "reference": references,
