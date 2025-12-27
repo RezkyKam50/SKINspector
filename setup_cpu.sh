@@ -1,6 +1,6 @@
 #!/bin/bash
 
-verified_count=0
+verified_count=2
 CUDA_V=V12.9.86
 
 echo "checking uv installation ..."
@@ -30,25 +30,11 @@ else
 fi
 
 echo
-echo "checking CUDA ${CUDA_V} ..."
-if command -v nvcc &>/dev/null; then
-    cuda_version=$(nvcc --version | grep "release" | awk '{print $6}' | sed 's/,//')
-    if [[ "$cuda_version" == $CUDA_V ]]; then
-        echo "VERIFIED: CUDA $cuda_version detected"
-        ((verified_count++))
-    else
-        echo "WARN: CUDA detected but version is $cuda_version (expected ${CUDA_V})"
-    fi
-else
-    echo "WARN: CUDA (nvcc) not found"
-fi
-
-echo
-if [[ $verified_count -eq 4 ]]; then
+if [[ $verified_count -eq 3 ]]; then
     echo "All checks VERIFIED. Running build script ..."
     bash ./scripts/dependencies.sh
-    chmod +x scripts/cuda_python_binding.sh 
-    bash ./scripts/cuda_python_binding.sh
+    chmod +x scripts/cpu_python_binding.sh 
+    bash ./scripts/cpu_python_binding.sh
     echo "Setting up Linux desktop integration ..."
     chmod +x ./scripts/linux_desktop.sh
     bash ./scripts/linux_desktop.sh

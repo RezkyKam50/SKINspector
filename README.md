@@ -12,17 +12,19 @@
 
 
 ---
-
-### Installation (Linux)
+### Installation (Linux CPU Only)
+> chmod +x setup_cpu.sh && ./setup_cpu.sh   
+### Installation (Linux w/ GPU Acceleration)
 > chmod +x setup.sh && ./setup.sh
 
 ---
 
 Note: 
-- Make sure systemwide CUDA version is 13.0 and GCC version is 14.0 
+- Make sure systemwide CUDA version is 13.0 ( only for GPU Acceleration )
+- GCC version is 14.0 ( both for GPU Acceleration and CPU only )
 - uv is installed for reliable dependencies resolving
 
-This project is not tested on Windows and WSL
+This project is not tested on Windows and WSL, for development please contact the maintainer of this repository.
 
 ---
 

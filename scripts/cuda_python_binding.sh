@@ -1,3 +1,5 @@
+#!/bin/bash
+
 source ./scripts/gcc_switcher.sh
 source ./scripts/cuda_toolkit.sh
 
