@@ -1,0 +1,15 @@
+[submodule "llama.cpp"]
+	path = llama.cpp
+	url = https://github.com/ggml-org/llama.cpp.git
+[submodule "3rdparty/flash-attention"]
+	path = 3rdparty/flash-attention
+	url = https://github.com/Dao-AILab/flash-attention.git
+[submodule "3rdparty/Liger-Kernel"]
+	path = 3rdparty/Liger-Kernel
+	url = https://github.com/linkedin/Liger-Kernel.git
+[submodule "3rdparty/transformers"]
+	path = 3rdparty/transformers
+	url = https://github.com/huggingface/transformers.git
+[submodule "3rdparty/llama.cpp"]
+	path = 3rdparty/llama.cpp
+	url = https://github.com/ggml-org/llama.cpp.git

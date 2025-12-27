@@ -1,0 +1,17 @@
+__pycache__/
+.venv/
+logs*/
+logs_*/
+utils/logs/
+datasets/*.csv
+datasets/*.parquet
+datasets/images/
+datasets/test/
+datasets/annotation/
+models/*qwen*
+models/Qwen*
+key.txt
+utils/*.csv
+chroma_db/
+cufile.*
+events.*
