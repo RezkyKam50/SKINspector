@@ -1,3 +1,5 @@
+#!/bin/bash
+
 compilerversion="-14"
 cudagccversion="-14"
 compiler="gcc"    

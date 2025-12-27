@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # dependencies : ninja-build ccache cmake
 # cuda toolkit dependencies for llama.cpp : 13.0
 

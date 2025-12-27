@@ -1,3 +1,5 @@
+#!/bin/bash
+
 verified_count=0
 CUDA_V=V12.9.86
 

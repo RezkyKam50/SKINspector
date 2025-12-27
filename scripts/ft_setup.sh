@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # run this as sudo
 
 chmod +x ./datasets/install_ds.sh

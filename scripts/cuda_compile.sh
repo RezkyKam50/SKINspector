@@ -1,3 +1,5 @@
+#!/bin/bash
+
 rm -rf ./3rdparty/llama.cpp/build && mkdir ./3rdparty/llama.cpp/build && cd ./3rdparty/llama.cpp/build 
 
 ENHANCED_C_FLAGS="-O3 -march=native -mtune=native"
