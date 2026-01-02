@@ -6,28 +6,30 @@ from transformers import (
     Trainer, 
     TrainerCallback
 )
+from bert_embedding import compute_prf1
 from torch.utils.data import DataLoader
-import evaluate, torch, os, gc, pprint, traceback, pandas as pd
-from bert_score import score as bert_score_compute
+import torch, os, gc, pprint, traceback, pandas as pd, time
+from loguru import logger
 
 def safe_divide(numerator, denominator, default=0.0):
     try:
+        if denominator != 0:
+            logger.info(f"Denominator is {denominator}")
         return numerator / denominator if denominator != 0 else default
+    
     except (TypeError, ZeroDivisionError):
+        logger.error(f"Zero division for metrics, returning {default}.")
         traceback.print_exc()
         return default
 
 def calculate_bertscore(predictions, references):
     try:
-        P, R, F1 = bert_score_compute(
-            cands               =predictions, 
-            refs                =references, 
-            lang                ="en",               
-            device              ="cpu",
-            nthreads            =8,
-            batch_size          =2048,
-            verbose             =False,
-            use_fast_tokenizer  =True
+        P, R, F1 = compute_prf1(
+            cands=predictions,
+            refs=references,
+            model_path="./models/pubmedbert-base-embeddings",
+            device="cpu",
+            fp16=False
         )
 
         precision_avg           = safe_divide(P.sum().item(), len(P))
@@ -39,8 +41,9 @@ def calculate_bertscore(predictions, references):
             "recall": recall_avg,
             "f1": f1_avg
         }
+    
     except Exception as e:
-        print(f"Error calculating BERTScore: {e}")
+        logger.error(f"Error calculating BERTScore: {e}")
         traceback.print_exc()
         return {"precision": 0.0, "recall": 0.0, "f1": 0.0}
 
@@ -56,8 +59,9 @@ def compute(results, predictions, references, metrics_dict):
                     predictions=predictions,
                     references=references
                 )
+
     except Exception as e:
-        print(f"Error during computing metrics: {e}")
+        logger.error(f"Error during computing metrics: {e}")
         traceback.print_exc()
     finally:
         gc.collect()
@@ -73,8 +77,8 @@ def log_metrics(pred, ref, metrics_dict, state, append=True, save_path=None):
 
     try:
         results = compute(results, predictions, references, metrics_dict)
+        logger.info(f"Metrics: {results}")
 
-        print("Metrics:", results)
         df = pd.DataFrame({
             "epoch": [state.epoch] * len(predictions),
             "step": [state.global_step] * len(predictions),
@@ -98,7 +102,7 @@ def log_metrics(pred, ref, metrics_dict, state, append=True, save_path=None):
             df.to_csv(save_path, index=False)
 
     except Exception as e:
-        print(f"Error during evaluation: {e}")
+        logger.error(f"Error during evaluation: {e}")
         traceback.print_exc()
         
     finally:
@@ -109,15 +113,23 @@ def log_metrics(pred, ref, metrics_dict, state, append=True, save_path=None):
 
 
 def input_tensors(batch, device):
+
+    # language modeling tensors
     inputs = {
         'input_ids': batch['input_ids'].to(device),
         'attention_mask': batch['attention_mask'].to(device)
     }
+
+    # vision tensors
     if 'pixel_values' in batch and batch['pixel_values'] is not None:
         inputs['pixel_values'] = batch['pixel_values'].to(device)
+    else:
+        logger.warning("pixel_values doesn't exist")
 
     if 'image_grid_thw' in batch and batch['image_grid_thw'] is not None:
         inputs['image_grid_thw'] = batch['image_grid_thw'].to(device)
+    else:
+        logger.warning("image_grid_thw doesn't exist")
 
     return inputs
 
@@ -127,6 +139,9 @@ def causal_generate(model, inputs, processor):
         **inputs,
         max_new_tokens          =256,
         do_sample               =True,
+        temperature             =1.4,      
+        top_k                   =50,            
+        top_p                   =0.90,          
         pad_token_id            =processor.tokenizer.pad_token_id,
         eos_token_id            =processor.tokenizer.eos_token_id,
         output_scores           =False,
@@ -161,26 +176,18 @@ def clean_text(output_text):
 
 
 class GenerationCallback(TrainerCallback):
-    def __init__(self, processor, _metrics_path):
+    def __init__(self, processor, metrics_path, metrics):
         self.processor = processor
-        self._metrics_path = _metrics_path
-        self.metrics = {
-            "rouge"     : evaluate.load("rouge"),
-            "bleu"      : evaluate.load("bleu"),
-            "meteor"    : evaluate.load("meteor"),
-            "bertscore" : "bertscore"  
-        }
+        self.metrics_path = metrics_path
+        self.metrics = metrics
 
     @torch.no_grad()
-    @torch.amp.autocast(
-        device_type='cuda',
-        dtype=torch.bfloat16,
-        enabled=True
-    )
     def on_evaluate(self, args, state, control, **kwargs):
+        start_time = time.time()  
         pprint.pprint(kwargs)
         original_padding_side = self.processor.tokenizer.padding_side
         self.processor.tokenizer.padding_side = 'left'
+        
         try:
             model = kwargs['model']
             device = model.device
@@ -189,41 +196,53 @@ class GenerationCallback(TrainerCallback):
 
             all_predictions = []
             all_references = []
-
+            
+            iteration_start = time.time()   
             for i, batch in enumerate(eval_dataloader):
-                if i >= 20:  
+                if i >= 100:  
+                    logger.info(f"Iteration ended at {i}")
                     break
-                print(f"Evaluating batch {i}...")
+                 
+                inputs = input_tensors(batch, device)
+                 
+                output_text = causal_generate(model, inputs, self.processor)
                 
-                inputs          = input_tensors(batch, device)
-                output_text     = causal_generate(model, inputs, self.processor)
                 cleaned_outputs = clean_text(output_text)
-
+                
                 all_predictions.extend(cleaned_outputs)
                 all_references.extend(batch['suffixes'])
-
+                
                 torch.cuda.empty_cache()
 
+            iteration_time = time.time() - iteration_start
+            logger.info(f"Evaluation took {iteration_time} seconds")
+
             if all_predictions and all_references:
+                metrics_start = time.time()
                 log_metrics(
-                    pred            =all_predictions,
-                    ref             =all_references,
-                    metrics_dict    =self.metrics,
-                    state           =state,
-                    save_path       =self._metrics_path
+                    pred=all_predictions,
+                    ref=all_references,
+                    metrics_dict=self.metrics,
+                    state=state,
+                    save_path=self.metrics_path
                 )
+                metrics_time = time.time() - metrics_start
+                logger.info(f"Metrics computation took {metrics_time:.2f} seconds")
             else:
-                print("No predictions generated for evaluation")
+                logger.warning("No predictions generated for evaluation")
 
         except Exception as e:
-            print(f"Error in evaluation (non-fatal): {e}")
-            import traceback
+            logger.error(f"Error in evaluation (non-fatal): {e}")
             traceback.print_exc()
 
         finally:
+            total_time = time.time() - start_time
+            logger.info(f"Total evaluation completed in {total_time:.2f} seconds")
             del cleaned_outputs, all_predictions, all_references
             self.processor.tokenizer.padding_side = original_padding_side
             torch.cuda.empty_cache()
+
+
 
 
 class CustomTrainer(Trainer):

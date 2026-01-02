@@ -1,8 +1,8 @@
 from datasets import Dataset
 from prompting import system_message, query_message
-import cudf #, pandas as pd
+import pandas as pd
 
-def format_data(sample, image, caption):
+def format_data(sample, image_col, caption_col):
     conversation = [
         {
             "role": "system",
@@ -13,7 +13,7 @@ def format_data(sample, image, caption):
             "content": [
                 {
                     "type": "image",
-                    "image": sample[image],   
+                    "image": sample[image_col],
                 },
                 {
                     "type": "text",
@@ -23,67 +23,57 @@ def format_data(sample, image, caption):
         },
         {
             "role": "assistant",
-            "content": sample[caption],
+            "content": sample[caption_col],
         },
     ]
-    
     return {
-        "image": sample[image],  
+        "image": sample[image_col],
         "conversations": conversation,
-        "text": sample[caption] # <- this is for suffix or golden reference 
+        "text": sample[caption_col]
     }
 
-def fetch(idx, parent, img_folder):
-    return f"{parent}/{img_folder}/img_{idx}.jpg"
+def fetch(filename, img_folder):
+    img_path = f"{img_folder}/{filename}"
+    return img_path
 
-def _train_splits(
-    path_to_dataset_parent=None, 
-    images_dataset_file=None,
-    annotation_dataset_file=None,
-    image=None, 
-    caption=None, 
-    caption_id=None, 
-    exclusion=None,
-    exclusion_id=None,
-    train_split=None, 
-    split_seed=None,
-    ):
-    ann = cudf.read_csv(f"{path_to_dataset_parent}/{annotation_dataset_file}")
+path_to_dataset_parent = "./datasets/Derm1M"
+train_annotation_dataset_file = "Derm1M_v2_pretrain.parquet"
+eval_annotation_dataset_file = "Derm1M_v2_validation.parquet"
+train_images_folder = f"{path_to_dataset_parent}"
+eval_images_folder = f"{path_to_dataset_parent}"
 
-    if exclusion is not None:
-        ann = ann[~ann[exclusion].isin(exclusion_id)].reset_index(drop=True)
-
-    print(image, caption, caption_id)
-
-    ann = ann[ann[caption_id].between(1, 4000)].copy().reset_index(drop=True)
-
-    df = cudf.DataFrame({
-        image: [fetch(
-            idx, 
-            path_to_dataset_parent, 
-            images_dataset_file
-            ) for idx in ann[caption_id].values_host],
-        caption: ann[caption]
+def _train_anno():
+    ann = pd.read_parquet(f"{path_to_dataset_parent}/{train_annotation_dataset_file}")
+    df = pd.DataFrame({
+        "image": [fetch(filename, train_images_folder) for filename in ann["filename"]],
+        "caption": ann["caption"]
     })
-
-    dataset = Dataset.from_pandas(df.to_pandas())
-    dataset = dataset.train_test_split(test_size=train_split, seed=split_seed)
+    dataset = Dataset.from_pandas(df)
     
-    train_data = [sample for sample in dataset["train"]]
-    eval_data = [sample for sample in dataset["test"]]
+    train_data = [format_data(sample, "image", "caption") for sample in dataset]
     
-    train_dataset = [format_data(
-        sample, 
-        image, 
-        caption
-        ) for sample in train_data]
+    return train_data
 
-    eval_dataset = [format_data(
-        sample, 
-        image, 
-        caption
-        ) for sample in eval_data]
+def _val_anno():
+    ann = pd.read_parquet(f"{path_to_dataset_parent}/{eval_annotation_dataset_file}")
+    df = pd.DataFrame({
+        "image": [fetch(filename, eval_images_folder) for filename in ann["filename"]],
+        "caption": ann["caption"]
+    })
+    dataset = Dataset.from_pandas(df)
+    val_data = [format_data(sample, "image", "caption") for sample in dataset]
     
-    return train_dataset, eval_dataset
+    return val_data
 
+def dataset():
+    train_data = _train_anno()
+    val_data = _val_anno()
+    return train_data, val_data
 
+if __name__ == "__main__":
+    train_data, val_data = dataset()
+    print(f"Training samples: {len(train_data)}")
+    print(f"Validation samples: {len(val_data)}")
+
+    print("Sample training data:", train_data[0])
+    print("Sample validation data:", val_data[0])

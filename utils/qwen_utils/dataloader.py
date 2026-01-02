@@ -1,6 +1,8 @@
 from qwen_vl_utils import process_vision_info
-from transformers import Qwen2_5_VLProcessor
+from transformers import Qwen2_5_VLProcessor, Qwen3VLProcessor
+from loguru import logger
 import torch
+ 
 
 def _tokenization_tr(batch, processor):
 
@@ -26,7 +28,9 @@ def _tokenization_tr(batch, processor):
         labels[labels == processor.tokenizer.pad_token_id] = -100
 
         if isinstance(processor, Qwen2_5_VLProcessor):
-            image_tokens = [151652, 151653, 151655]
+            image_tokens = [151652, 151653, 151655] # vision_start_token_id, vision_end_token_id, image_token_id
+        elif isinstance(processor, Qwen3VLProcessor):
+            image_tokens = [151655] # image_token_id
         else:
             image_tokens = [processor.tokenizer.convert_tokens_to_ids(processor.image_token)]
         
@@ -70,10 +74,11 @@ def _tokenization_ev(batch, processor):
 
         labels = model_inputs["input_ids"].clone()
         labels[labels == processor.tokenizer.pad_token_id] = -100
-
-        # Mask out image tokens
+ 
         if isinstance(processor, Qwen2_5_VLProcessor):
-            image_tokens = [151652, 151653, 151655]
+            image_tokens = [151652, 151653, 151655] # vision_start_token_id, vision_end_token_id, image_token_id
+        elif isinstance(processor, Qwen3VLProcessor):
+            image_tokens = [151655] # image_token_id
         else:
             image_tokens = [
                 processor.tokenizer.convert_tokens_to_ids(processor.image_token)
