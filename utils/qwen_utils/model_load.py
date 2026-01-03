@@ -14,6 +14,8 @@ from liger_kernel.transformers import (
 
 def LLM_LOAD_HF(
     path_to_model, 
+    dtype=None,
+    dmap=None,
     apply_liger_kernel=None,
     min_pixels=None, 
     max_pixels=None, 
@@ -25,9 +27,9 @@ def LLM_LOAD_HF(
     if qwen3:
         model = Qwen3VLForConditionalGeneration.from_pretrained(
             model_path, 
-            device_map="auto",
-            dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2",
+            device_map=dmap,
+            dtype=dtype,
+            attn_implementation="flash_attention_3",
             trust_remote_code=True,
             local_files_only=True,
             quantization_config=_quantizecfg()
@@ -52,9 +54,9 @@ def LLM_LOAD_HF(
     else:
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_path, 
-            device_map="auto",
-            dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2",
+            device_map=dmap,
+            dtype=dtype,
+            attn_implementation="flash_attention_3",
             trust_remote_code=True,
             local_files_only=True,
             quantization_config=_quantizecfg()

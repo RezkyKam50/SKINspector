@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2026/dev/Arch Linux) (preloaded format=pdflatex 2025.12.29)  29 DEC 2025 19:43
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2026/dev/Arch Linux) (preloaded format=pdflatex 2025.12.29)  2 JAN 2026 22:27
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -255,7 +255,7 @@ L3 programming layer <2025-01-18>
 Here is how much of TeX's memory you used:
  3305 strings out of 475171
  50693 string characters out of 5767094
- 446297 words of memory out of 5000000
+ 445213 words of memory out of 5000000
  26294 multiletter control sequences out of 15000+600000
  570634 words of font info for 53 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
@@ -264,7 +264,7 @@ Here is how much of TeX's memory you used:
 texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/share/texmf-dist/fonts/typ
 e1/urw/times/utmb8a.pfb></usr/share/texmf-dist/fonts/type1/urw/times/utmr8a.pfb
 >
-Output written on skinspector.pdf (1 page, 40780 bytes).
+Output written on skinspector.pdf (1 page, 38820 bytes).
 PDF statistics:
  29 PDF objects out of 1000 (max. 8388607)
  17 compressed objects within 1 object stream

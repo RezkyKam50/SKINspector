@@ -1,10 +1,10 @@
-from dataloader import (
-    _tokenization_tr, 
-    _tokenization_ev
-)
 from transformers import (
     Trainer, 
     TrainerCallback
+)
+from dataloader import (
+    _tokenization_tr, 
+    _tokenization_ev
 )
 from bert_embedding import compute_prf1
 from torch.utils.data import DataLoader
@@ -134,6 +134,7 @@ def input_tensors(batch, device):
     return inputs
 
 
+@torch.inference_mode(mode=True)
 def causal_generate(model, inputs, processor):
     generated_ids = model.generate(
         **inputs,
@@ -162,6 +163,7 @@ def causal_generate(model, inputs, processor):
         skip_special_tokens             =True,
         clean_up_tokenization_spaces    =True   
     )
+    torch.cuda.empty_cache()
     del generated_ids, generated_ids_trimmed
     return output_text
 
@@ -170,7 +172,7 @@ def clean_text(output_text):
     cleaned_outputs = []
     for text in output_text:
         cleaned = text.strip()
-        cleaned = cleaned.replace('<|endoftext|>', '').replace('<|im_end|>', '').replace('Describe the following image.', '').strip()
+        cleaned = cleaned.replace('<|endoftext|>', '').replace('<|im_end|>', '').replace('Describe the following image.', '').replace('assistant', '').strip()
         cleaned_outputs.append(cleaned)
     return cleaned_outputs
 
@@ -181,7 +183,6 @@ class GenerationCallback(TrainerCallback):
         self.metrics_path = metrics_path
         self.metrics = metrics
 
-    @torch.no_grad()
     def on_evaluate(self, args, state, control, **kwargs):
         start_time = time.time()  
         pprint.pprint(kwargs)
@@ -242,9 +243,6 @@ class GenerationCallback(TrainerCallback):
             self.processor.tokenizer.padding_side = original_padding_side
             torch.cuda.empty_cache()
 
-
-
-
 class CustomTrainer(Trainer):
     def __init__(
         self, 
@@ -287,7 +285,7 @@ class CustomTrainer(Trainer):
         return DataLoader(
             eval_dataset or self.eval_dataset,
             batch_size          =self.args.per_device_eval_batch_size,
-            shuffle             =True,
+            shuffle             =False,
             collate_fn          =lambda b: _tokenization_ev(b, self.processor),
             num_workers         =self.num_workers_ev,
             pin_memory          =self.is_pin_memory_tr,

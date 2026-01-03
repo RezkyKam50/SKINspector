@@ -68,6 +68,10 @@ def _val_anno():
 def dataset():
     train_data = _train_anno()
     val_data = _val_anno()
+
+    # train_data = Dataset.from_list(train_data)
+    # val_data = Dataset.from_list(val_data)
+
     return train_data, val_data
 
 if __name__ == "__main__":

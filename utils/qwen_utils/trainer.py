@@ -1,7 +1,8 @@
 from transformers import (
-    TrainingArguments,
-    DataCollatorForSeq2Seq
+    TrainingArguments
+    # DataCollatorForSeq2Seq
 )
+ 
 from peft import (
     LoraConfig, 
     get_peft_model
@@ -10,7 +11,7 @@ from custom import (
     CustomTrainer,
     GenerationCallback
 )
- 
+
 from model_load import LLM_LOAD_HF
 from preprocess import dataset
 import warnings, torch, gc, evaluate
@@ -33,6 +34,8 @@ lora_targets=[
 
 _revision="revision_2-DERM1M"
 _model_path=f"./models/Qwen3-VL-2B-Instruct"
+_model_dmap="auto"
+_model_dtype=torch.bfloat16
 _model_isqwen3=True
 _model_patch_liger=True
 _model_dynamic_res = False if _model_isqwen3 else True
@@ -51,7 +54,7 @@ _dataset_tr_persistent=True if _dataset_tr_pin_memory else False
 _dataset_ev_persistent=True if _dataset_tr_pin_memory else False
 
 _train_lora_modules = lora_targets[0] if _model_isqwen3 else lora_targets[1]
-_train_lora_alpha=32
+_train_lora_alpha=16
 _train_lora_ranks=_train_lora_alpha*2
 _train_lora_dropout=0.05
 _train_lora_dora=True
@@ -62,12 +65,12 @@ _train_batch_size=1
 _eval_batch_size=1
 _train_grad_accum=_train_batch_size*2
 
-_train_learning_rate=2e-4
+_train_learning_rate=5e-5
 _train_optimizer="lion_8bit"  
 _train_scheduler="cosine"      
 _train_max_grad_norm=15.5
 _train_weight_decay=0.001
-_train_warmup_steps=100
+_train_warmup_steps=50
 _train_seed=42
 
 _train_save_strategy="steps"  
@@ -101,6 +104,8 @@ def Prepare(use_cuda=None, require_grad=None):
 
     model, processor = LLM_LOAD_HF(
             path_to_model=_model_path,
+            dtype=_model_dtype,
+            dmap=_model_dmap,
             min_pixels=_dataset_ev_tr_images_min_pixel,
             max_pixels=_dataset_ev_tr_images_max_pixel,
             apply_liger_kernel=_model_patch_liger,
@@ -187,7 +192,15 @@ def VL_Train(
             tf32=_train_tf32,
             ddp_find_unused_parameters=_train_ddp_find_unused_params,
             group_by_length=_train_group_by_length,
-            remove_unused_columns=_train_drop_unused_column
+            remove_unused_columns=_train_drop_unused_column,
+
+            use_liger_kernel=_model_patch_liger,
+            liger_kernel_config={
+                "rope": True,
+                "swiglu": True,
+                "fused_linear_cross_entropy": True,  
+                "rms_norm": True
+            }
         )
         trainer = CustomTrainer(
             model=peft_model,
@@ -199,10 +212,10 @@ def VL_Train(
             persistent_tr=_dataset_tr_persistent,
             persistent_ev=_dataset_ev_persistent,
             # (in a case where our custom dataloader returns raw tensor, we'll use Seq2Seq collator)
-            data_collator=DataCollatorForSeq2Seq(
-                tokenizer=processor.tokenizer, 
-                padding=True
-            ),
+            # data_collator=DataCollatorForSeq2Seq(
+            #     tokenizer=processor.tokenizer, 
+            #     padding=True
+            # ),
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,

@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 from loguru import logger
+import time
+
 from PIL import Image
 import matplotlib.pyplot as plt
 
@@ -110,8 +112,7 @@ def visualize(model, processor, image_path, question, target_layer):
     )
 
     return visualization, cam_resized
-
- 
+  
 def generate_response(model, processor, image_path, question):
     messages = [
         {
@@ -141,8 +142,19 @@ def generate_response(model, processor, image_path, question):
         return_tensors="pt",
     ).to("cuda")
 
-    with torch.no_grad():
-        generated_ids = model.generate(**inputs, max_new_tokens=256)
+    with torch.inference_mode():
+        generated_ids = model.generate(
+        **inputs,
+        max_new_tokens          =256,
+        do_sample               =True,
+        temperature             =1.4,      
+        top_k                   =50,            
+        top_p                   =0.90,          
+        pad_token_id            =processor.tokenizer.pad_token_id,
+        eos_token_id            =processor.tokenizer.eos_token_id,
+        output_scores           =False,
+        return_dict_in_generate =False,
+        )
         generated_ids = generated_ids[:, inputs.input_ids.shape[1]:]
         output_text = processor.batch_decode(
             generated_ids,
@@ -158,7 +170,6 @@ def main():
         apply_liger_kernel=True,
         qwen3=True
     )
-
     model = model.to("cuda").eval()
     model.model.visual = model.model.visual.float()
 
@@ -194,7 +205,11 @@ def main():
     plt.show()
 
     print("\nModel response:")
+
+    start = time.time()
     print(generate_response(model, processor, image_path, question))
+    end = time.time() - start
+    logger.info(f"Done in {end} seconds")
  
 
 if __name__ == "__main__":
