@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 import torch, os, gc, pprint, traceback, pandas as pd, time
 from loguru import logger
 
+
 def safe_divide(numerator, denominator, default=0.0):
     try:
         if denominator != 0:
@@ -23,11 +24,14 @@ def safe_divide(numerator, denominator, default=0.0):
         return default
 
 def calculate_bertscore(predictions, references):
+    logger.info("Calculating P, R, F1 for this interation...")
     try:
         P, R, F1 = compute_prf1(
             cands=predictions,
             refs=references,
             model_path="./models/pubmedbert-base-embeddings",
+            max_length=512,
+            batch_size=25,
             device="cpu",
             fp16=False
         )
@@ -186,6 +190,7 @@ class GenerationCallback(TrainerCallback):
     def on_evaluate(self, args, state, control, **kwargs):
         start_time = time.time()  
         pprint.pprint(kwargs)
+        logger.info("Starting evaluation...")
         original_padding_side = self.processor.tokenizer.padding_side
         self.processor.tokenizer.padding_side = 'left'
         
@@ -200,6 +205,7 @@ class GenerationCallback(TrainerCallback):
             
             iteration_start = time.time()   
             for i, batch in enumerate(eval_dataloader):
+                logger.info(f"Evaluation: {i}")
                 if i >= 100:  
                     logger.info(f"Iteration ended at {i}")
                     break
@@ -217,8 +223,9 @@ class GenerationCallback(TrainerCallback):
 
             iteration_time = time.time() - iteration_start
             logger.info(f"Evaluation took {iteration_time} seconds")
-
+ 
             if all_predictions and all_references:
+                logger.info("Computing NLP metrics...")
                 metrics_start = time.time()
                 log_metrics(
                     pred=all_predictions,
