@@ -17,6 +17,7 @@ from preprocess import dataset
 import warnings, torch, gc, evaluate
 from loguru import logger
 
+
 lora_targets=[
     [
     # qwen3 language layer
@@ -33,23 +34,23 @@ lora_targets=[
 ]
 
 _revision="revision_2-DERM1M"
-_model_path=f"./models/Qwen3-VL-2B-Instruct"
+_model_path=f"./models/Qwen3-VL-4B-Instruct"
+_model_applybnb=True
 _model_dmap="auto"
 _model_dtype=torch.bfloat16
 _model_isqwen3=True
 _model_patch_liger=True
-_model_dynamic_res = False if _model_isqwen3 else True
 
 _train_ft_output=f"./models/lora_qwen_vl_{_revision}/"
 _train_metrics_log=f"./docs/metrics_{_revision}.csv"
 
-_dataset_ev_tr_images_max_pixel= (512 * (28 * 28)) if _model_isqwen3 is False else None
-_dataset_ev_tr_images_min_pixel= (256 * (28 * 28)) if _model_isqwen3 is False else None
+_dataset_ev_tr_images_max_pixel= (512 * 28 * 28) if _model_isqwen3 is False else (512 * 32 * 32) 
+_dataset_ev_tr_images_min_pixel= (256 * 28 * 28) if _model_isqwen3 is False else (256 * 32 * 32)
 
-_dataset_tr_workers_count=6             
-_dataset_ev_workers_count=6             
-_dataset_tr_pin_memory=True 
-_dataset_ev_pin_memory=True    
+_dataset_tr_workers_count=2             
+_dataset_ev_workers_count=2             
+_dataset_tr_pin_memory=False 
+_dataset_ev_pin_memory=False    
 _dataset_tr_persistent=True if _dataset_tr_pin_memory else False
 _dataset_ev_persistent=True if _dataset_tr_pin_memory else False
 
@@ -96,6 +97,11 @@ _train_ddp_find_unused_params=False
 _train_group_by_length=False
 _train_drop_unused_column=True
 
+_eval_metrics_p = 4
+_eval_rouge = evaluate.load("rouge", num_process=_eval_metrics_p)
+_eval_bleu = evaluate.load("bleu", num_process=_eval_metrics_p)
+_eval_meteor = evaluate.load("meteor", num_process=_eval_metrics_p)
+
 def Prepare(use_cuda=None, require_grad=None):
     warnings.filterwarnings(
         "ignore", 
@@ -106,10 +112,10 @@ def Prepare(use_cuda=None, require_grad=None):
             path_to_model=_model_path,
             dtype=_model_dtype,
             dmap=_model_dmap,
+            apply_quant=_model_applybnb,
             min_pixels=_dataset_ev_tr_images_min_pixel,
             max_pixels=_dataset_ev_tr_images_max_pixel,
             apply_liger_kernel=_model_patch_liger,
-            apply_dynamic_resolution=_model_dynamic_res,
             qwen3=_model_isqwen3
         )
 
@@ -118,11 +124,11 @@ def Prepare(use_cuda=None, require_grad=None):
     if use_cuda and require_grad:
         model.to('cuda')
         model.enable_input_require_grads()
-        print(torch.cuda.memory_summary())
+        # print(torch.cuda.memory_summary())
     else:
         model.to('cpu')
         model.enable_input_require_grads()
-        print("Using CPU; Training will take significantly longer.")
+        logger.info("Using CPU; Training will take significantly longer.")
 
     return model, processor, train_dataset, eval_dataset
 
@@ -154,7 +160,7 @@ def VL_Train(
         peft_model = get_peft_model(
             model, peft_config
         )
-        logger.info(f"{peft_model}")
+        # logger.info(f"{peft_model}")
 
         training_args = TrainingArguments(
             output_dir=_train_ft_output,
@@ -224,9 +230,9 @@ def VL_Train(
                         processor    = processor, 
                         metrics_path =_train_metrics_log,
                         metrics      = {
-                            "rouge": evaluate.load("rouge"),
-                            "bleu": evaluate.load("bleu"),
-                            "meteor": evaluate.load("meteor"),
+                            "rouge": _eval_rouge,
+                            "bleu": _eval_bleu,
+                            "meteor": _eval_meteor,
                             "bertscore": "bertscore"
                         }
                     )
