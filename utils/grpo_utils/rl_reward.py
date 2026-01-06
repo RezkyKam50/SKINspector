@@ -12,7 +12,18 @@ def format_reward(completions, **kwargs):
     rewards = [1.0 if match else 0.0 for match in matches]
     return rewards
 
-def telederm_reward(completions, solution, **kwargs):
+def style_reward(completions, solution, **kwargs):
+    '''
+    Docstring for style_reward
+    
+    :param completions: Description
+    :param solution: Description
+    :param kwargs: Description
+    '''
+
+    return None
+
+def terminologies_reward(completions, solution, **kwargs):
     '''
     Docstring for telederm_reward
     
