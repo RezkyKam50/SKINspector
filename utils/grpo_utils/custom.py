@@ -1,12 +1,13 @@
-from transformers import (
-    Trainer, 
-    TrainerCallback
+from trl import (
+    GRPOTrainer
 )
-from dataloader import (
+from transformers import TrainerCallback
+
+from .. qwen_utils.dataloader import (
     _tokenization_tr, 
     _tokenization_ev
 )
-from bert_embedding import compute_prf1
+from .. qwen_utils.bert_embedding import compute_prf1
 from torch.utils.data import DataLoader
 import torch, os, gc, pprint, traceback, pandas as pd, time
 from loguru import logger
@@ -250,7 +251,7 @@ class GenerationCallback(TrainerCallback):
             self.processor.tokenizer.padding_side = original_padding_side
             torch.cuda.empty_cache()
 
-class CustomTrainer(Trainer):
+class CustomTrainer(GRPOTrainer):
     def __init__(
         self, 
         processor, 

@@ -1,19 +1,14 @@
-from transformers import (
-    TrainingArguments
-    # DataCollatorForSeq2Seq
-)
- 
-from peft import (
-    LoraConfig, 
-    get_peft_model
+from trl import (
+    GRPOConfig
 )
 from custom import (
-    CustomTrainer,
+    CustomTrainer, 
     GenerationCallback
 )
+from rl_reward import format_reward, telederm_reward
 
-from model_load import LLM_LOAD_HF
-from preprocess import dataset
+from .. qwen_utils.model_load import LLM_LOAD_HF
+from .. qwen_utils.preprocess import dataset
 import warnings, torch, gc, evaluate
 from loguru import logger
 
@@ -33,8 +28,9 @@ lora_targets=[
     ]
 ]
 
-_revision="revision_2-DERM1M"
+_revision="grpo_revision_1-DERM1M"
 _model_path=f"./models/Qwen3-VL-4B-Instruct"
+_grpo_num_generations=5
 _model_applybnb=True
 _model_dmap="auto"
 _model_dtype=torch.bfloat16
@@ -101,6 +97,7 @@ _eval_rouge = evaluate.load("rouge", experiment_id=f"{_revision}_rouge")
 _eval_bleu = evaluate.load("bleu", experiment_id=f"{_revision}_bleu")
 _eval_meteor = evaluate.load("meteor", experiment_id=f"{_revision}_meteor")
 
+
 def Prepare(use_cuda=None, require_grad=None):
     warnings.filterwarnings(
         "ignore", 
@@ -161,8 +158,9 @@ def VL_Train(
         )
         # logger.info(f"{peft_model}")
 
-        training_args = TrainingArguments(
+        training_args = GRPOConfig(
             output_dir=_train_ft_output,
+            num_generations=_grpo_num_generations,
             num_train_epochs=_train_epochs,
             per_device_train_batch_size=_train_batch_size,
             per_device_eval_batch_size=_eval_batch_size,
@@ -210,6 +208,7 @@ def VL_Train(
         trainer = CustomTrainer(
             model=peft_model,
             processor=processor,
+            reward_funcs=[telederm_reward, format_reward],
             num_workers_tr=_dataset_tr_workers_count,
             num_workers_ev=_dataset_ev_workers_count,
             pin_memory_tr=_dataset_tr_pin_memory,
@@ -249,3 +248,6 @@ def VL_Train(
 if __name__ == "__main__":
 
     VL_Train(True, True, True)
+
+
+
