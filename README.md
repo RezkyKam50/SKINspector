@@ -27,6 +27,13 @@ Note:
 This project is not tested on Windows and WSL, for development please contact the maintainer of this repository.
 
 ---
+**If you're using a part of this project for research purposes, consider to cite:**
+
+```
+R. M. Kam, A. F. Fatahillah, R. H. Tafara, F. Young, and M. Asanuddin, "SKINspetoR: Superfast, privacy centric RAG VLM dermatologist," 2026. [Online]. Available: https://github.com/RezkyKam50/SKINspector
+```
+
+---
 
 **Citations**
 

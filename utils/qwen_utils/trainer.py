@@ -35,6 +35,7 @@ lora_targets=[
 
 _revision="revision_2-DERM1M"
 _model_path=f"./models/Qwen3-VL-4B-Instruct"
+_checkpoint_resume="./models/lora_qwen_vl_revision_2-DERM1M/checkpoint-100"
 _model_applybnb=True
 _model_dmap="auto"
 _model_dtype=torch.bfloat16
@@ -87,7 +88,7 @@ _train_greater_is_better=False
 _train_report_to="tensorboard"  
 _train_dataloader_drop_last=False
 _train_logging_first_step=True
-_train_eval_on_start=True
+_train_eval_on_start=False
 
 _train_fp16=False    
 _train_bf16=True
@@ -239,7 +240,7 @@ def VL_Train(
         )
 
         peft_model.print_trainable_parameters()
-        trainer.train()
+        trainer.train(resume_from_checkpoint=_checkpoint_resume)
         trainer.save_model(training_args.output_dir)
 
     finally:

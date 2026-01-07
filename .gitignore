@@ -6,6 +6,8 @@ utils/logs/
 datasets/
 models/*qwen*
 models/Qwen*
+models/MedGemma
+models/HuaTuo
 models/pubmedbert*
 key.txt
 utils/*.csv
