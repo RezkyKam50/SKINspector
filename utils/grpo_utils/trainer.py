@@ -5,6 +5,10 @@ from custom import (
     CustomTrainer, 
     GenerationCallback
 )
+from peft import (
+    LoraConfig,
+    get_peft_model
+)
 from rl_reward import format_reward, telederm_reward
 
 from .. qwen_utils.model_load import LLM_LOAD_HF
