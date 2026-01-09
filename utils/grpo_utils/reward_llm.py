@@ -1,3 +1,4 @@
+import llama_cpp
 from llama_cpp import Llama
 from llama_cpp.llama_chat_format import Llava15ChatHandler
 
@@ -6,6 +7,17 @@ from loguru import logger
 import re
 import base64
 import time
+import sys
+
+_CPU_CONF = {
+    'threads': 6
+}
+
+_GPU_CONF = {
+    'gpu_layers': 99,
+    'flash_attention': True
+}
+
 
 class Gemma3ChatHandler(Llava15ChatHandler):
     # borrowed from: https://github.com/abetlen/llama-cpp-python/pull/1989
@@ -67,7 +79,7 @@ def image_to_base64_data_uri(file_path: str, mime_type: str = "image/jpeg") -> s
     return f"data:{mime_type};base64,{base64_data}"
 
 
-def MedGemmaExpert(path_to_image: str) -> str:
+def MedGemmaExpert(path_to_image: str, gpu: bool) -> str:
     logger.info("Generating reference description...")
     image_uri = image_to_base64_data_uri(path_to_image)
     chat_handler = Gemma3ChatHandler(
@@ -76,8 +88,11 @@ def MedGemmaExpert(path_to_image: str) -> str:
     )
     llm = Llama(
         model_path="./models/MedGemma/medgemma-4b-it-Q4_K_M.gguf",
-        chat_format="gemma",
-        n_ctx=4096 * 12,
+        n_ctx=4096,
+        use_mmap=True,
+        n_threads=_CPU_CONF["threads"],
+        n_gpu_layers=_GPU_CONF['gpu_layers'] if gpu else 0,
+        flash_attn=_GPU_CONF["flash_attention"] if gpu else False,
         chat_handler=chat_handler,
         verbose=False
     )
@@ -95,7 +110,9 @@ def MedGemmaExpert(path_to_image: str) -> str:
                 4. Most likely diagnosis with 2-3 differentials
                 5. Risk factors (ABCDE criteria if pigmented)
 
-                Use precise medical terminology. Be concise but comprehensive."""
+                Use precise medical terminology. Be concise but comprehensive.
+
+                """
             },
             {
                 "role": "user",
@@ -105,25 +122,124 @@ def MedGemmaExpert(path_to_image: str) -> str:
                 ]
             }
         ],
-        max_tokens=512,
-        temperature=0.4,
+        max_tokens=1024,
+        temperature=0.0,
         top_p=0.95
     )
-    
+
+    result = output['choices'][0]['message']['content']
     logger.info(f"Reference generated in {time.time() - start:.2f}s")
+    logger.info(f"MedGemma - {result}")
+
     return output['choices'][0]['message']['content']
 
 
-def MedGemmaScorer(reference: str, candidate: str, path_to_image: str, path_to_fw_image:str, factor:dict) -> dict:
-    """
-    Evaluate candidate description against reference for medical writing quality.
+def HuaTuoExpert(reference: str, critic_mode: bool,gpu: bool) -> dict[str, any]:
+    logger.info("Evaluating MedGemma diagnosis...")
+    llm = Llama(
+        model_path="./models/HuaTuo/HuatuoGPT-o1-8B.gguf",
+        chat_format="llama-3",
+        n_ctx=2048,
+        use_mmap=True,
+        n_threads=_CPU_CONF["threads"],
+        n_gpu_layers=_GPU_CONF['gpu_layers'] if gpu else 0,
+        flash_attn=_GPU_CONF["flash_attention"] if gpu else False,
+        verbose=False
+    )
     
-    Returns dict with:
-        - score: float 0.0-1.0
-        - technical_accuracy: float 0.0-1.0
-        - writing_style: float 0.0-1.0
-        - reasoning: str
-    """
+    start = time.time()
+
+    if reference is None:
+        reference = "Candidate didn't give a respond."
+
+    if critic_mode:
+        output = llm.create_chat_completion(
+            messages=[
+                {
+                    "role": "system",
+                    "content": """
+                    You are a rigorous senior dermatologist conducting a critical peer review. Your role is to identify weaknesses, gaps, and potential errors in clinical assessments.
+                    
+                    Provide a thorough critique focusing on:
+
+                    1. **Missing Information**: What critical clinical details are absent? (e.g., lesion size, duration, patient history, location specifics)
+                    2. **Diagnostic Weaknesses**: Is the primary diagnosis adequately justified? What evidence is lacking or contradictory?
+                    3. **Overlooked Differentials**: What alternative diagnoses should have been considered but weren't? Are there red flags being missed?
+                    4. **Incomplete Risk Assessment**: What risk factors or warning signs (ABCDE criteria, malignancy indicators) were inadequately addressed?
+                    5. **Insufficient Clinical Recommendations**: Are the proposed next steps appropriate? What critical actions are missing (biopsy, urgent referral, specific imaging)?
+                    6. **Clinical Reasoning Gaps**: Where is the logical reasoning flawed or incomplete?
+                    
+                    **Important**: The assessment is based solely on clinical description without imaging confirmation, which introduces significant diagnostic uncertainty.
+                    
+                    Be direct and specific about deficiencies. If the assessment is strong, acknowledge it, but prioritize identifying areas for improvement and potential clinical risks.
+                    """
+                },
+                {
+                    "role": "user",
+                    "content": f"""
+                    Critically evaluate this dermatological assessment and identify its weaknesses:
+
+                    "{reference}"
+
+                    Focus on what's missing, inadequate, or potentially problematic in this clinical reasoning.
+                    """
+                }
+            ],
+            max_tokens=2048,
+            temperature=1.2,
+            top_p=0.95
+        )
+    else:
+        output = llm.create_chat_completion(
+            messages=[
+                {
+                    "role": "system",
+                    "content": """
+                    You are a senior dermatologist providing a critical second opinion. 
+                    You will review and provide:
+
+                    1. Clinical validation: Assess the accuracy and completeness of the morphological description
+                    2. Diagnostic reasoning: Evaluate whether the primary diagnosis is well-supported by the described features
+                    3. Differential refinement: Comment on whether the differentials are appropriate, and suggest additions if warranted
+                    4. Risk assessment: Validate or expand on risk stratification (e.g., ABCDE criteria for melanocytic lesions)
+                    5. Clinical recommendations: Suggest next steps (biopsy, imaging, follow-up, reassurance)
+                    6. The assessment doesn't provide an image which means the evidence is only based on the clinical description.
+                    
+                    Be precise, evidence-based, and constructive. Highlight both strengths, weakness and critical gaps (if present) in the assessment.
+                    """
+                },
+                {
+                    "role": "user",
+                    "content": f"""
+                    Please review the following dermatological assessment:
+
+                    "{reference}"
+
+                    Provide your second opinion on this clinical description and diagnostic reasoning.
+                    """
+                }
+            ],
+            max_tokens=2048,
+            temperature=0.4,
+            top_p=0.95
+        )
+    
+    result = output['choices'][0]['message']['content']
+    logger.info(f"Validation completed in {time.time() - start:.2f}s")
+    logger.info(f"HuaTuo - {result}")
+
+    t = re.search(r'## Thinking\n+(.*?)(?=## Final Response|$)', result, re.DOTALL)
+    t_content = t.group(1).strip() if t else None
+    r = re.search(r'## Final Response\n+(.*)', result, re.DOTALL)
+    r_content = r.group(1).strip() if r else None
+ 
+    return {
+        'full': result, 
+        'reasoning': t_content, 
+        'answer': r_content
+    }
+
+def MedGemmaScorer(reference: list, candidate: str, path_to_image: str, path_to_fw_image:str, factor:dict, gpu:bool) -> dict:
     logger.info("Evaluating medical writing...")
      
     chat_handler = Gemma3ChatHandler(
@@ -132,9 +248,12 @@ def MedGemmaScorer(reference: str, candidate: str, path_to_image: str, path_to_f
     )
     llm = Llama(
         model_path="./models/MedGemma/medgemma-4b-it-Q4_K_M.gguf",
-        # chat_format="gemma",
-        n_ctx=4096 * 14,
         chat_handler=chat_handler,
+        n_ctx=4096 * 14,
+        use_mmap=True,
+        n_threads=_CPU_CONF["threads"],
+        n_gpu_layers=_GPU_CONF['gpu_layers'] if gpu else 0,
+        flash_attn=_GPU_CONF["flash_attention"] if gpu else False,
         verbose=False
     )
     
@@ -142,9 +261,15 @@ def MedGemmaScorer(reference: str, candidate: str, path_to_image: str, path_to_f
     fakefw = image_to_base64_data_uri(path_to_fw_image)
 
     start = time.time()
+
+    if candidate is None:
+        candidate = "Candidate didn't give a respond. Set all score to 0."
+
+    critic_to_candidate = HuaTuoExpert(candidate, True, gpu)
+
     output = llm.create_chat_completion(
         messages=[
-                {
+                    {
                     "role": "system",
                     "content": system_rule
                     },
@@ -169,9 +294,14 @@ def MedGemmaScorer(reference: str, candidate: str, path_to_image: str, path_to_f
                             {"type": "image_url", "image_url": {"url": realfw}},
                             {"type": "text", "text": f"""
                                 REFERENCE (expert description):
-                                Expert: "{reference}"
+                                {construct_expert_sequence(reference)}
+
                                 CANDIDATE (to evaluate):
                                 Candidate: "{candidate}"
+
+                                CRITIC (critic to candidate statement):
+                                Critic: "{critic_to_candidate['answer']}"
+                                Reason for Critic: "{critic_to_candidate['reasoning']}"
 
                                 Evaluate the Candidate's Technical Accuracy, Writing Style, 
                                 Clinical Reasoning & Differential Diagnosis, Safety & Urgency 
@@ -196,55 +326,7 @@ def MedGemmaScorer(reference: str, candidate: str, path_to_image: str, path_to_f
 
     return scores
 
-def _posthoc_failure_gate(overall: float, expert: str, candidate: str) -> float:
-
-    CRITICAL_MISMATCHES = [
-        (["allergic", "allergy", "allergic reaction"], ["basal cell carcinoma", "bcc", "malignancy"]),
-        (["eczema", "dermatitis", "inflammatory"], ["melanoma", "malignant melanoma"]),
-        (["fungal", "tinea", "candida"], ["squamous cell carcinoma", "scc"]),
-        (["benign", "harmless", "non-cancerous"], ["melanoma", "aggressive malignancy"]),
-        (["cosmetic", "aesthetic concern"], ["urgent", "malignant", "biopsy required"]),
-        (["acne", "pimple", "comedone"], ["basal cell carcinoma", "nodular bcc"]),
-        (["age spot", "sun spot", "lentigo"], ["melanoma", "lentigo maligna"]),
-        (["mole", "nevus", "beauty mark"], ["amelanotic melanoma", "nodular melanoma"]),
-        (["wart", "verruca", "viral lesion"], ["squamous cell carcinoma", "keratoacanthoma"]),
-        (["psoriasis", "plaque", "scaling"], ["cutaneous t-cell lymphoma", "mycosis fungoides"]),
-        (["rosacea", "facial redness"], ["lupus", "systemic disease"]),
-        (["seborrheic keratosis", "benign growth"], ["pigmented basal cell carcinoma"]),
-        (["cherry angioma", "vascular lesion"], ["kaposi sarcoma", "angiosarcoma"]),
-        (["skin tag", "acrochordon", "fibroma"], ["dermatofibrosarcoma protuberans", "sarcoma"]),
-        (["hives", "urticaria", "allergic"], ["urticarial vasculitis", "systemic vasculitis"]),
-        (["insect bite", "bug bite"], ["basal cell carcinoma", "ulcerated lesion"]),
-        (["bruise", "contusion", "trauma"], ["purpura", "thrombocytopenia", "leukemia cutis"]),
-        (["dry skin", "xerosis"], ["ichthyosis", "cutaneous t-cell lymphoma"]),
-        (["ingrown hair", "folliculitis"], ["squamous cell carcinoma", "perineural invasion"]),
-        (["heat rash", "miliaria"], ["cutaneous lymphoma"]),
-        (["freckle", "ephelis"], ["lentigo maligna melanoma"]),
-        (["cyst", "epidermoid cyst"], ["metastatic carcinoma", "subcutaneous malignancy"]),
-        (["keloid", "hypertrophic scar"], ["dermatofibrosarcoma protuberans"]),
-        (["vitiligo", "depigmentation"], ["hypopigmented mycosis fungoides"]),
-        (["lipoma", "fatty tumor"], ["liposarcoma", "soft tissue sarcoma"]),
-    ]
-    
-    candidate_lower = candidate.lower()
-    expert_lower = expert.lower()
-    
-    for wrong_terms, correct_terms in CRITICAL_MISMATCHES:
-        matched_wrong = [term for term in wrong_terms if term in candidate_lower]
-        matched_correct = [term for term in correct_terms if term in expert_lower]
-        
-        if matched_wrong and matched_correct:
-            logger.warning(
-                f"Failure gate triggered due to mismatch. "
-                f"Candidate contained: {matched_wrong}, "
-                f"Expert contained: {matched_correct}. "
-                f"This message is safe to prevent catastrophic failure"
-            )
-            return 0.0
-        
-    return overall
-
-def _posthoc_veto_gate(overall: str, reason: str):
+def _posthoc_failure_gate(overall: float, reason: str):
 
     SEVERITY_TERMS = [
         "completely inappropriate",
@@ -279,8 +361,8 @@ def _posthoc_veto_gate(overall: str, reason: str):
     ]
 
     if any(term in reason.lower() for term in SEVERITY_TERMS):
-        logger.warning("Veto gate triggered due to severity. This message is safe to prevent catastrophic failure")
-        overall = min(overall, 0.05)
+        logger.warning("Failure gate triggered due to severity. This message is safe to prevent catastrophic failure")
+        overall = 0.00
     else:
         overall = overall
 
@@ -341,8 +423,7 @@ def _parse_evaluation(text: str, candidate:str, expert:str, factor: dict) -> dic
             actionability_score         * factor["ACT_S"]         
         )
     
-    overall = _posthoc_veto_gate(overall, reasoning_text)
-    overall = _posthoc_failure_gate(overall, expert, candidate)
+    overall = _posthoc_failure_gate(overall, reasoning_text)
 
     return {
         'score': overall,
@@ -361,57 +442,65 @@ def _parse_evaluation(text: str, candidate:str, expert:str, factor: dict) -> dic
     }
 
 
-def Judge(candidate_text: str, image_path: str, fake_image_path:str, factor:dict) -> dict:
-    """
-    Main evaluation function: evaluate a candidate description.
-    
-    Args:
-        candidate_text: Medical description to evaluate
-        image_path: Path to dermatology image
-        fake_image_path: Path to sample image for fewshot
+def Judge(candidate_text: str, image_path: str, fake_image_path:str, factor:dict, verbose:bool, gpu:bool) -> dict:
+    start = time.time()
+    ref1 = MedGemmaExpert(image_path, gpu)
+    ref2 = HuaTuoExpert(ref1, False, gpu)
 
-    Returns:
-        dict with scores and feedback
-    """
-    # Generate reference
-    reference = MedGemmaExpert(image_path)
-    logger.info(f"Reference: {reference[:200]}...")
-    evaluation = MedGemmaScorer(reference, candidate_text, image_path, fake_image_path, factor)
-    
+    references = [
+        ref1,
+        ref2['answer']
+    ]
+
+    if len(references) < 2:
+        logger.warning(f"Found {len(references)} but required more than 1.")
+        references[1] = "I'm unable to evaluate Expert 1, proceed evaluating the candidate."
+
+    evaluation = MedGemmaScorer(references, candidate_text, image_path, fake_image_path, factor, gpu)
+    end = time.time() - start
+
     logger.info(f"Final Score: {evaluation['score']:.3f}")
     logger.info(f"Technical: {evaluation['technical_accuracy']:.3f}, Writing: {evaluation['writing_style']:.3f}")
-    
+
+
+    if verbose:
+        result = {**evaluation}
+        logger.info("EVALUATION RESULTS")
+        logger.info(f"Overall Score: {result['score']:.3f}")
+        logger.info("DIMENSION SCORES:")
+        logger.info(f"Technical Accuracy:           {result['technical_accuracy']:.3f}")
+        logger.info(f"Writing Style:                {result['writing_style']:.3f}")
+        logger.info(f"Clinical Reasoning:           {result['clinical_reasoning']:.3f}")
+        logger.info(f"Safety & Urgency:             {result['safety_urgency']:.3f}")
+        logger.info(f"Completeness:                 {result['completeness']:.3f}")
+        logger.info(f"Diagnostic Specificity:       {result['diagnostic_specificity']:.3f}")
+        logger.info(f"Educational Value:            {result['educational_value']:.3f}")
+        logger.info(f"Accuracy of Limitations:      {result['accuracy_limitations']:.3f}")
+        logger.info(f"Structured Presentation:      {result['structured_presentation']:.3f}")
+        logger.info(f"Clinical Actionability:       {result['clinical_actionability']:.3f}")
+        logger.info("DETAILED REASONING:")
+        logger.info(f"\n{result['reasoning']}\n")
+        logger.info(f"Took {end:.2f} seconds to complete.")
+
     return {
-        'reference': reference,
         **evaluation
     }
 
 
 if __name__ == "__main__":
+
+    # ref = MedGemmaExpert("./examples/testing/basal.jpg", gpu=False)
+    # output = HuaTuoExpert(ref, gpu=False)
+
+    # logger.info(str(output['reasoning']))
+    # logger.info(str(output['answer']))
+
     # Test case
-    image_path = "./examples/testing/basal.jpg"
-    candidate_description='''
-    what the hell
-    '''
+    image_path = "./examples/testing/dermatitis.jpg"
 
-    candidates = (
-        '''
-        A. Visual Description:  
-        - Primary Morphology: A well-demarcated, raised lesion with a distinct, irregular border. The surface appears smooth and slightly erythematous, not clearly scaled or crusted, but with a fine, vascular network visible (indicative of inflammation). The lesion is partially obscured by a dark, possibly ocular, area on the right, suggesting proximity to an eye or adjacent mucosal surface.  
-        - Color & Shape: The lesion presents as erythematous to violaceous, with a slightly dusky hue and an irregular, non-uniform contour. The borders appear blurred and indistinct, blending into the surrounding skin in a way consistent with inflammatory or early proliferative processes.  
-        - Scale/Crust/Erosion: No scales, crusts, or erosions are evident. The surface is smooth and homogeneous, though the presence of fine vascularization suggests active vascular changes.  
-        - Distribution & Pattern: The lesion is localized, not symmetrical, and appears to occur in a dermatologic context, potentially near the ocular or mucosal area, with no other lesion visible in the frame.  
-
-        B. Most Likely Diagnosis:  
-        Most Likely Diagnosis: Inflammatory or reactive dermatosis such as
-        ''',
-        '''
-        This image shows a close-up view of a skin disease characterized by red, inflamed patches on the skin, caused by an overproduction of skin cells, which may require treatment
-        ''',
-        '''
-        This image shows a close-up view of a skin disease characterized by red, inflamed patches on the skin, likely caused by an allergic reaction to a specific substance. Treatment options include topical creams and avoiding the allergen 
-        '''
-    )
+    candidates = [
+        '''It might be an acne due to the spots.'''   
+    ]
 
     fake_image = "./examples/testing/basal_1.jpg"
     factor = {
@@ -428,30 +517,8 @@ if __name__ == "__main__":
     }
 
     for cands in candidates:
-        result = Judge(cands, image_path, fake_image, factor=factor)
-        logger.info(f"\n{'='*80}")
-        logger.info("EVALUATION RESULTS")
-        logger.info(f"{'[]'*80}\n")
-        
-        logger.info(f"Overall Score: {result['score']:.3f}")
-        logger.info(f"\n{'-'*80}")
-        logger.info("DIMENSION SCORES:")
-        logger.info(f"{'-'*80}")
-        logger.info(f"Technical Accuracy:           {result['technical_accuracy']:.3f}")
-        logger.info(f"Writing Style:                {result['writing_style']:.3f}")
-        logger.info(f"Clinical Reasoning:           {result['clinical_reasoning']:.3f}")
-        logger.info(f"Safety & Urgency:             {result['safety_urgency']:.3f}")
-        logger.info(f"Completeness:                 {result['completeness']:.3f}")
-        logger.info(f"Diagnostic Specificity:       {result['diagnostic_specificity']:.3f}")
-        logger.info(f"Educational Value:            {result['educational_value']:.3f}")
-        logger.info(f"Accuracy of Limitations:      {result['accuracy_limitations']:.3f}")
-        logger.info(f"Structured Presentation:      {result['structured_presentation']:.3f}")
-        logger.info(f"Clinical Actionability:       {result['clinical_actionability']:.3f}")
-        
-        logger.info(f"\n{'-'*80}")
-        logger.info("DETAILED REASONING:")
-        logger.info(f"{'-'*80}")
-        logger.info(f"\n{result['reasoning']}\n")
-        logger.info(f"{'='*80}\n")
+        logger.info(f"To be evaluated: {candidates}")
+        result = Judge(cands, image_path, fake_image, factor=factor, verbose=True, gpu=False)
+
 
 

@@ -1,4 +1,11 @@
 
+def construct_expert_sequence(reference):
+    exp_chain = []
+    for idx, exp in enumerate(reference):
+        exp_chain.append(f'Expert {idx + 1}: "{exp}"')
+    exp_chain = "\n".join(exp_chain)
+    
+    return exp_chain
 
 system_rule = """        
 SCORING RULES (MANDATORY):
@@ -158,65 +165,115 @@ Reasoning: [single paragraph for reasoning] [STOP]
 
 user_shot_one ="""
 REFERENCE (expert description):
-Expert: "Here's a clinical description of the skin lesion:
-1.  **Morphology:**
+Expert 1: "Okay, here's a clinical description of the skin lesion based on the provided image, using the requested terminology:
 
-    *   **Lesion Type:** Ulcerated, with a central crateriform (dish-like) appearance.
-    *   **Size:** Approximately 1.5 cm in diameter.
-    *   **Shape:** Irregular, with a central crater and surrounding erythema.
-    *   **Color:** The central crater is a deep, brownish-red color. The surrounding area is erythematous and slightly hyperpigmented.
-    *   **Borders:** Ill-defined borders, with a halo of inflammation.
-    *   **Texture:** Ulcerated, with a rough, scabrous surface in the central crater.
+**Clinical Description:**
 
-2.  **Location and Distribution:**
+The image shows a raised, erythematous lesion with a central umbilication and crusting. The lesion is located on the face, specifically on the cheek.
 
-    *   The lesion is located on the face, specifically on the cheek.
+**1. Morphology:**
 
-3.  **Key Clinical Features:**
+*   **Lesion Type:** Ulcerated nodule
+*   **Size:** Approximately 1.5 cm in diameter.
+*   **Shape:** Irregular, with a central umbilication.
+*   **Color:** Erythematous (red) with areas of crusting.
+*   **Borders:** Ill-defined, with surrounding erythema.
+*   **Texture:** Ulcerated, crusting, and potentially scabrous.
 
-    *   Ulceration with a crateriform appearance.
-    *   Erythema and mild hyperpigmentation surrounding the ulcer.
-    *   Ill-defined borders.
+**2. Location and Distribution:**
 
-4.  **Most Likely Diagnosis:**
+*   **Location:** Cheek, face.
+*   **Distribution:** Single lesion.
 
-    *   **Basal Cell Carcinoma (BCC):** This is the most likely diagnosis given the morphology (ulcerated, crateriform lesion), location on the face, and the patient's age and sun exposure history (assuming this is the case).
-    *   **Squamous Cell Carcinoma (SCC):** Less likely than BCC, but SCC is a possibility. SCC can also present as an ulcerated lesion.
-    *   **Actinic Keratosis (AK):** AKs can sometimes present as a scaly, erythematous lesion that progresses to ulceration.
+**3. Key Clinical Features:**
 
-5.  **Risk Factors:**
+*   Erythematous base.
+*   Central umbilication.
+*   Crusting.
+*   Ulceration.
 
-    *   **Age:** Advanced age is a major risk factor.
-    *   **Sun Exposure:** Prolonged and unprotected sun exposure is a significant risk factor.
-    *   **Fair Skin:** Individuals with fair skin are more susceptible.
-    *   **History of Sunburns:** A history of sunburns increases the risk.
-    *   **Immunosuppression:** Immunosuppressed patients are at higher risk.
-    *   **Previous Radiation Therapy:** Prior radiation exposure increases the risk.
-    *   **Genetic Predisposition:** Certain genetic factors may increase susceptibility.
-    *   **Previous Skin Cancer:** History of previous skin cancer.
-"
+**4. Most Likely Diagnosis with 2-3 Differentials:**
+
+*   **Most Likely:** Basal Cell Carcinoma (BCC)
+*   **Differentials:**
+    *   Squamous Cell Carcinoma (SCC)
+    *   Malignant Melanoma
+
+**5. Risk Factors (ABCDE criteria if pigmented):**
+
+*   **Sun Exposure:** Prolonged and unprotected sun exposure is a major risk factor for all three diagnoses.
+*   **Age:** Risk increases with age.
+*   **Fair Skin:** Individuals with fair skin are more susceptible.
+*   **History of Sunburns:** A history of sunburns increases risk.
+*   **Immunosuppression:** Immunosuppressed individuals are at higher risk.
+*   **Previous Radiation Therapy:** Prior radiation exposure increases risk.
+*   **Genetic Predisposition:** Family history of skin cancer.
+
+**Important Considerations:**
+
+*   This is a preliminary assessment based on a single image. A definitive diagnosis requires a clinical examination, potentially a biopsy, and histopathological analysis.
+*   The ABCDE criteria are primarily relevant for pigmented lesions (melanomas). While they can be applied to other lesions, they are not as crucial for non-pigmented lesions like BCC.
+*   The presence of ulceration is a significant feature that points towards a diagnosis of BCC or SCC.
+
+**Disclaimer:** This information is for educational purposes only and should not be considered medical advice. Always consult with a qualified dermatologist for diagnosis and treatment of skin conditions. 
+Expert 2: "The clinical description provided is thorough and well-structured, effectively covering the morphology, location, and key clinical features of the skin lesion. The assessment is based on a raised, erythematous lesion with a central umbilication and crusting, located on the cheek, which aligns with the typical presentation of basal cell carcinoma (BCC). The use of the ABCDE criteria is relevant, although primarily designed for pigmented lesions, they can still be applied to non-pigmented lesions like BCC to assess features such as size and evolution.
+The differential diagnoses of squamous cell carcinoma (SCC) and malignant melanoma are also appropriate, as they are common skin cancers that can present similarly. However, it would be beneficial to consider additional differentials, such as pyogenic granuloma or benign keratosis, which could have overlapping features.
+The risk factors discussed, including sun exposure, age, fair skin, history of sunburns, and immunosuppression, are all relevant and important considerations. The mention of previous radiation therapy and genetic predisposition is also pertinent, as these can significantly impact the risk of developing skin cancer.
+The assessment is well-supported by the described features, and the conclusion that BCC is the most likely diagnosis is reasonable. However, it is crucial to emphasize that a definitive diagnosis requires a clinical examination and potentially a biopsy, along with histopathological analysis.
+In summary, the clinical description is comprehensive, and the diagnostic reasoning is well-supported. However, it would be beneficial to consider additional differentials and risk factors to ensure a thorough evaluation. A biopsy is essential to confirm the diagnosis."
+
+CRITIC (critic to candidate statement):
+Critic: "The dermatological assessment has several weaknesses and areas for improvement. 
+First, there is a lack of critical clinical details, such as lesion size and duration, which are essential for a thorough evaluation. The absence of these details creates significant uncertainty in the diagnostic process. 
+Second, the primary diagnosis of basal cell carcinoma is not adequately justified, given the absence of vesicles or pustules, which are not typical for this condition. The unusual yellowish-white appearance further questions the diagnosis and suggests diagnostic uncertainty. 
+Third, alternative diagnoses are not clearly considered. The assessment mentions pathergy and contact dermatitis, but these seem unlikely without documented trauma and an isolated papule pattern. There should be a more comprehensive exploration of potential differential diagnoses, such as viral infections or other skin conditions. 
+Fourth, the risk factors and warning signs are inadequately addressed. Without a thorough history, including the patient's immunization status and past medical conditions, it's challenging to provide informed and appropriate treatment decisions. 
+Fifth, the proposed diagnostic testing—viral culture or PCR—seems unconventional for confirming basal cell carcinoma. This approach may indicate an uncertainty about the diagnosis and a leaning towards a viral etiology, which is not typical for basal cell carcinoma. 
+Finally, the clinical reasoning has gaps, particularly in considering the absence of imaging confirmation. The assessment relies heavily on appearance and description, which is limited. A more systematic and comprehensive evaluation, incorporating clinical, laboratory, and imaging findings, is necessary to accurately diagnose and manage this skin condition. 
+Overall, the assessment would benefit from additional detail on clinical presentation, a broader consideration of differential diagnoses, and a more conventional diagnostic approach."
+Reason for Critic: "Let's see, the assessment here is trying to figure out what's going on with this skin lesion. They mention basal cell carcinoma, but there's something off. The description doesn't have vesicles or pustules, which is kind of unusual for basal cell carcinoma. So, there's already some uncertainty there. 
+They say they're considering other things like pathergy and contact dermatitis, but those don't really fit either. No trauma is mentioned, and it's just a single papule. So, those are a bit of a stretch. 
+Next, they talk about needing more information. A thorough history is important, and they mention checking the timeline of symptoms, but they don't dive into what else they need from the patient. 
+Oh, and then they suggest using viral culture or PCR to confirm the diagnosis. That seems a bit out of the ordinary. It's not common for basal cell carcinoma to be confirmed that way, so this seems a bit off. 
+Then there's the mention of considering alternative diagnoses. That's good, but they don't specify what exactly those are. They just say to look at the patient's medical history. 
+Let's think about what's missing here. The description is based on appearances, and they're trying to make a diagnosis without any imaging. That's pretty limited. Normally, you'd expect more detailed information about the lesion, like its size or how long it's been there. And a complete medical history would give a much clearer picture. 
+There's also a lack of alternative diagnoses being clearly considered. Sure, they mention looking at the patient's past medical conditions, but they don't specify which conditions or how they relate to the lesion. 
+Then there's the whole diagnostic testing part. Viral culture or PCR isn't really a standard for basal cell carcinoma. It seems like they might be leaning towards something viral, which isn't typical for this diagnosis. 
+In conclusion, this assessment is missing a lot of details that are crucial for a proper evaluation. There's no clear plan for what they're going to do next, and the diagnostic testing they propose is unconventional. Overall, this evaluation could benefit from more concrete evidence and a more systematic approach."
 
 CANDIDATE (to evaluate):
-Candidate: "    *   **Lesion Type:** Ulcerated, with a central crateriform (dish-like) appearance.
-*   **Size:** Approximately 1.5 cm in diameter.
-*   **Shape:** Irregular, with a central crater and surrounding erythema.
-*   **Color:** The central crater is a deep, brownish-red color. The surrounding area is erythematous and slightly hyperpigmented.
-*   **Borders:** Ill-defined borders, with a halo of inflammation.
-*   **Texture:** Ulcerated, with a rough, scabrous surface in the central crater."
+Candidate: "The clinical presentation raises questions about the diagnosis. 
+    Basal cell carcinoma typically manifests with vesicles or pustules, 
+    yet these features are absent from the description, and the yellowish-white appearance 
+    of the papule doesn't align with usual presentations, indicating diagnostic uncertainty. 
+    While pathergy and contact dermatitis have been included in the differential diagnosis, 
+    both appear unlikely given the absence of documented trauma and the isolated central papule 
+    pattern. A thorough clinical assessment and comprehensive patient history exploring symptom 
+    timeline, associated features, and relevant medical background are essential next steps. 
+    If basal cell carcinoma remains suspected despite the atypical presentation, diagnostic testing 
+    through viral culture or PCR analysis would be valuable for confirmation. The current findings 
+    suggest basal cell carcinoma as the leading possibility, but the unusual characteristics—particularly 
+    the absence of vesicular lesions—warrant careful consideration of alternative diagnoses, including 
+    review of the patient's immunization history and past medical conditions to guide appropriate treatment decisions."
 
-Evaluate the Candidate's Technical Accuracy, Writing Style, Clinical Reasoning & Differential Diagnosis, Safety & Urgency Assessment, Completeness of Assessment, Diagnostic Specificity, Educational Value, Accuracy of Limitation, Structured Presentation, Clinical Actionability and give the Reason.
+                                Evaluate the Candidate's Technical Accuracy, Writing Style, 
+                                Clinical Reasoning & Differential Diagnosis, Safety & Urgency 
+                                Assessment, Completeness of Assessment, Diagnostic Specificity, 
+                                Educational Value, Accuracy of Limitation, Structured Presentation, 
+                                Clinical Actionability and give the Reason.
 """
 
 assistant_shot_one=f"""
-Technical Accuracy: 0.8
-Writing Style: 0.7
-Clinical Reasoning & Differential Diagnosis: 0.7
-Safety & Urgency Assessment: 0.6
-Completeness of Assessment: 0.7
-Diagnostic Specificity: 0.7    
-Educational Value: 0.6
-Accuracy of Limitation: 0.6
-Structured Presentation: 0.7
-Clinical Actionability: 0.5
-Reasoning: The candidate provides a reasonable description of the lesion, including its morphology, location, and risk factors. The candidate's diagnosis is accurate, but the assessment could be more comprehensive and informative. The candidate's writing style is generally good, but the description could be more systematic and organized. The candidate's clinical reasoning and differential diagnosis are adequate, but could be improved by providing more specific justifications for each diagnosis. The candidate's safety and urgency assessment is incomplete, and the candidate's clinical actionability is limited. [STOP]
+Technical Accuracy: 0.2  
+Writing Style: 0.2  
+Clinical Reasoning & Differential Diagnosis: 0.0  
+Safety & Urgency Assessment: 0.0  
+Completeness of Assessment: 0.2  
+Diagnostic Specificity: 0.0  
+Educational Value: 0.2  
+Accuracy of Limitation: 0.0  
+Structured Presentation: 0.0
+Clinical Actionability: 0.0  
+
+Reasoning: The candidate response demonstrates fundamental clinical inadequacies that align with the critic's concerns about missing critical details and unconventional diagnostic approaches. While Expert 1 provides a comprehensive assessment including morphology (ulcerated nodule, 1.5cm, irregular shape), location (cheek), and clear differential diagnoses (BCC, SCC, malignant melanoma), the candidate fails to establish any structured diagnostic framework. Expert 2 emphasizes the importance of clinical examination and biopsy for definitive diagnosis, yet the candidate focuses on atypical features ("yellowish-white appearance," "absence of vesicular lesions") without providing the thorough clinical assessment or patient history that both experts deem essential. The critic correctly identifies the unconventional approach of suggesting viral culture or PCR for suspected basal cell carcinoma, which the candidate perpetuates despite this being inappropriate for BCC diagnosis. Most critically, the candidate presents diagnostic uncertainty and mentions alternative diagnoses without actually listing them or providing risk factor analysis (sun exposure, age, fair skin) that Expert 1 identifies as crucial. The response lacks the anatomical specificity, size measurements, ABCDE criteria application, and clear clinical actionability that both experts demonstrate, resulting in an assessment that would be clinically unusable and potentially unsafe due to the absence of urgency guidance for an ulcerated facial lesion. [STOP]
 """

@@ -106,21 +106,49 @@ def criteria_reasoning_reward(completion, solution, debug=None, **kwargs):
     
     return reward
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 
-#     completion='''
-#     <think>
-#     The lesion exhibits asymmetry, irregular borders, and color 
-#     variation. Considering differential diagnosis: melanoma vs 
-#     dysplastic nevus vs seborrheic keratosis.
-#     </think>
-#     <answer>
-#     Most likely diagnosis: Melanoma. The ABCDE criteria are 
-#     concerning. Recommend urgent dermatology referral and biopsy.
-#     </answer>
-#     '''
+    completion='''
+## Thinking
 
-#     logger.info(f"Reward: {criteria_reasoning_reward(completion, None, debug=True)}")
+Okay, let's take a look at this skin lesion. The description says it's raised, erythematous, and has a central umbilication with crusting. That's interesting. The location is the periorbital region, which is a common spot for skin cancers, especially basal cell carcinoma. 
+
+Now, let's think about the morphology. It's described as elevated and nodular, which fits with a skin cancer profile. The size is about 1.5 cm, which is a decent size for a suspicious lesion. The color is erythematous, and there's crusting and some scaling. Hmm, crusting makes me think of something more aggressive, like a squamous cell carcinoma. 
+
+But wait, there's also that central umbilication. That's a bit unusual for a typical basal cell carcinoma. Usually, BCC has a pearly appearance with rolled borders. This one seems more inflamed and crusted. Maybe it's a variant of BCC, like a nodular one? Or could it be something else entirely? 
+
+Let's consider the differentials. Basal cell carcinoma is the most likely diagnosis, but squamous cell carcinoma is also on the table. And keratosis pilaris seems less likely, given the crusting and central depression. 
+
+Now, about the ABCDE criteria. The lesion is asymmetrical, has irregular borders, and is larger than 6mm. It's also changing in size and color, which is concerning. These criteria are often used for melanoma, but they can also apply to other skin cancers. 
+
+I see that there are risk factors listed, like sun exposure, fair skin, and a history of sunburns. These are definitely important to consider, especially since they increase the risk of skin cancer. 
+
+So, what's my conclusion? Based on the description, I'm leaning towards basal cell carcinoma, but I'm not completely ruling out squamous cell carcinoma or another type of skin lesion. It's important to get a biopsy to confirm the diagnosis. 
+
+In terms of next steps, I would recommend a biopsy to get a definitive diagnosis. It's also important to keep an eye on the lesion and follow up regularly to see if it changes. And, of course, consider the risk factors and take steps to prevent future skin issues. 
+
+Overall, this is a complex case, and a biopsy will provide the clarity needed to make an accurate diagnosis.
+
+## Final Response
+
+The clinical description of the skin lesion is detailed and provides several key features that are useful for evaluating the potential diagnosis. The lesion is raised, erythematous, and has a central umbilication with crusting, which is a notable combination of characteristics. The location on the periorbital region is a common site for skin cancers, such as basal cell carcinoma (BCC) and squamous cell carcinoma (SCC). 
+
+The morphology of the lesion as described is consistent with a nodular lesion, which can be seen in both BCC and SCC. However, the presence of central umbilication is less typical for BCC, which usually has a pearly appearance with rolled borders. This feature, along with the crusting and scaling, could suggest a variant of BCC or even a different type of skin lesion. 
+
+The ABCDE criteria for melanoma are mentioned, but they are more commonly used for pigmented lesions. However, they can also apply to non-pigmented lesions, such as basal cell carcinoma, especially if there is asymmetry, irregular borders, and a significant change in size or color. 
+
+The differentials listed, including BCC, SCC, and keratosis pilaris, are appropriate. However, given the crusting and central umbilication, it might be worth considering other possibilities such as a pyogenic granuloma or an inflammatory lesion. 
+
+In terms of risk factors, the patient's history of sun exposure, fair skin, and previous sunburns are all relevant and increase the risk of developing skin cancer. 
+
+Given the complexity of the lesion and the need for a definitive diagnosis, a biopsy is recommended to confirm the diagnosis. It's also important to monitor the lesion for any changes and to follow up regularly. Additionally, addressing the risk factors, such as sun protection and skin care, is crucial in managing this condition. 
+
+Overall, the clinical description is thorough, and the differentials are appropriate. However, the central umbilication and crusting warrant further investigation to rule out other potential diagnoses. A biopsy will provide the necessary clarity to make an accurate diagnosis.
+    '''
+
+
+logger.info(f"Think: {thinking_content}")
+logger.info(f"Resp.: {final_response_content}")
 
 
 
