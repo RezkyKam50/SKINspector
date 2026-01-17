@@ -12,10 +12,20 @@
 
 
 ---
+
 ### Installation (Linux CPU Only)
 > chmod +x setup_cpu.sh && ./setup_cpu.sh   
 ### Installation (Linux w/ GPU Acceleration)
 > chmod +x setup.sh && ./setup.sh
+
+---
+
+### Run (w/ GUI)
+> python3 ./src/run.py
+
+## Run (Headless)
+> chmod +x ./examples/demo/headless.sh
+> ./examples/demo/headless.sh
 
 ---
 

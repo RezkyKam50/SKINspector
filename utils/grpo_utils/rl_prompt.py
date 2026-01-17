@@ -159,7 +159,7 @@ Educational Value: [score]
 Accuracy of Limitations: [score]
 Structured Presentation: [score]
 Clinical Actionability: [score]
-Reasoning: [single paragraph for reasoning] [STOP]
+Reasoning: [reasoning] [STOP]
 
 """
 

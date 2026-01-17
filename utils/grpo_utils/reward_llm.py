@@ -10,7 +10,7 @@ import time
 import sys
 
 _CPU_CONF = {
-    'threads': 6
+    'threads': 10
 }
 
 _GPU_CONF = {
@@ -110,7 +110,8 @@ def MedGemmaExpert(path_to_image: str, gpu: bool) -> str:
                 4. Most likely diagnosis with 2-3 differentials
                 5. Risk factors (ABCDE criteria if pigmented)
 
-                Use precise medical terminology. Be concise but comprehensive.
+                Use precise medical terminology. Be concise but comprehensive. Respond in detail and a single paragraph
+                without bullet points.
 
                 """
             },
@@ -328,13 +329,51 @@ def MedGemmaScorer(reference: list, candidate: str, path_to_image: str, path_to_
 
 def _posthoc_failure_gate(overall: float, reason: str):
 
-    SEVERITY_TERMS = [
-        "completely inappropriate",
-        "completely inaccurate",
-        "completely inadequat",
-        "lacks any",
+    ADJ = [
+        "inappropriate",
+        "inaccurate", 
+        "inadequate",
+        "irrelevant",
+        "incomplete",
+        "ineffective",
+        "inefficient",
+        "insufficient",
+        "invalid",
+        "unreliable",
         "unacceptable",
-        "dangerous",
+        "unreasonable",
+        "unverified",
+        "outdated",
+        "misleading",
+        "confusing",
+        "ambiguous",
+        "contradictory",
+        "biased",
+        "partial",
+        "subjective",
+        "unsubstantiated",
+        "unsupported",
+        "problematic",
+        "troubling",
+        "questionable",
+        "dubious",
+        "suspicious",
+        "erroneous",
+        "flawed",
+        "defective",
+        "faulty"
+    ]
+    MODIFIERS = ["completely", "fundamentally", "absolutely", "entirely", "severely"]
+
+    SEVERITY_COMMON = [
+        f"{modifier} {adj}" 
+        for modifier in MODIFIERS
+        for adj in ADJ 
+    ]
+
+    SEVERITY_SPEC = [
+        "unacceptable",
+        "misleading",
         "critical failure",
         "life-threatening",
         "potentially fatal",
@@ -360,8 +399,12 @@ def _posthoc_failure_gate(overall: float, reason: str):
         "No reasoning provided"
     ]
 
-    if any(term in reason.lower() for term in SEVERITY_TERMS):
-        logger.warning("Failure gate triggered due to severity. This message is safe to prevent catastrophic failure")
+    all_terms = []
+    all_terms.extend(SEVERITY_COMMON)
+    all_terms.extend(SEVERITY_SPEC)
+
+    if any(term in reason.lower() for term in all_terms):
+        logger.warning("Failure gate triggered due to severity. This message is safe to prevent catastrophic scoring failure")
         overall = 0.00
     else:
         overall = overall
@@ -425,7 +468,7 @@ def _parse_evaluation(text: str, candidate:str, expert:str, factor: dict) -> dic
     
     overall = _posthoc_failure_gate(overall, reasoning_text)
 
-    return {
+    all = {
         'score': overall,
         'technical_accuracy': technical_score,
         'writing_style': writing_score,
@@ -441,12 +484,18 @@ def _parse_evaluation(text: str, candidate:str, expert:str, factor: dict) -> dic
         'raw_output': text
     }
 
+    return all
 
 def Judge(candidate_text: str, image_path: str, fake_image_path:str, factor:dict, verbose:bool, gpu:bool) -> dict:
+
     start = time.time()
     ref1 = MedGemmaExpert(image_path, gpu)
     ref2 = HuaTuoExpert(ref1, False, gpu)
 
+    # expert pipeline,
+    # expert 1 for general assessment
+    # expert 2 for second opinion of expert 1
+    # expert 2 also for critizing (w/ critic_mode:bool) 
     references = [
         ref1,
         ref2['answer']
@@ -462,9 +511,9 @@ def Judge(candidate_text: str, image_path: str, fake_image_path:str, factor:dict
     logger.info(f"Final Score: {evaluation['score']:.3f}")
     logger.info(f"Technical: {evaluation['technical_accuracy']:.3f}, Writing: {evaluation['writing_style']:.3f}")
 
+    result = {**evaluation}
 
     if verbose:
-        result = {**evaluation}
         logger.info("EVALUATION RESULTS")
         logger.info(f"Overall Score: {result['score']:.3f}")
         logger.info("DIMENSION SCORES:")
@@ -481,11 +530,9 @@ def Judge(candidate_text: str, image_path: str, fake_image_path:str, factor:dict
         logger.info("DETAILED REASONING:")
         logger.info(f"\n{result['reasoning']}\n")
         logger.info(f"Took {end:.2f} seconds to complete.")
+        # Took 344.86 seconds to complete.
 
-    return {
-        **evaluation
-    }
-
+    return result
 
 if __name__ == "__main__":
 
@@ -496,10 +543,16 @@ if __name__ == "__main__":
     # logger.info(str(output['answer']))
 
     # Test case
-    image_path = "./examples/testing/dermatitis.jpg"
+    image_path = "./examples/testing/basal_1.jpg"
 
     candidates = [
-        '''It might be an acne due to the spots.'''   
+        '''Examination of the right cheek reveals a 1.5 cm raised lesion. 
+        It is notably erythematous and crusted, with a central dell (umbilication)
+        and a raised, irregular border that has a violaceous tint. 
+        The classic morphology—particularly the central umbilication and pearly, 
+        violaceous border—is highly suggestive of nodular basal cell carcinoma. 
+        Primary differentials are squamous cell carcinoma and advanced actinic keratosis. 
+        This is in the context of chronic sun damage.'''   
     ]
 
     fake_image = "./examples/testing/basal_1.jpg"
